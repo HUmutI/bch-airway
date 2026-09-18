@@ -101,11 +101,12 @@ rows = [
     [(masks[0], None), (masks[1], None), (masks[2], None),
      (union, None), (final, "#1baf7a")],
     [(seeded(masks[0], seed), None), (seeded(masks[1], seed), None),
-     (seeded(masks[2], seed), None), (seeded(union, seed), None),
-     (final, "#1baf7a")],
+     (seeded(masks[2], seed), None), (seeded(union, seed), "#1baf7a")],
 ]
+# The fifth column has no second row. Selection is what that column already is,
+# so repeating it would print the same mask and the same volume twice.
 letters = [["(a)", "(b)", "(c)", "(d)", "(e)"],
-           ["(f)", "(g)", "(h)", "(i)", "(j)"]]
+           ["(f)", "(g)", "(h)", "(i)"]]
 
 # Shading ten panels takes about half an hour, and the layout usually needs
 # several attempts, so the images are cached. Delete the cache to re-render.
@@ -113,7 +114,7 @@ import matplotlib.colors as mc
 CACHE = OUT + "_panels.npz"
 if os.path.exists(CACHE):
     z = np.load(CACHE)
-    imgs = [[z[f"p{r}{c}"] for c in range(5)] for r in range(2)]
+    imgs = [[z[f"p{r}{c}"] for c in range(len(rows[r]))] for r in range(2)]
     vols = z["vols"]
     print("loaded cached panels from", CACHE)
 else:
@@ -122,7 +123,9 @@ else:
         out, vr = [], []
         for mask, colour in row:
             final_panel = colour is not None
-            sr.RENDER_MM = 0.20 if final_panel else 0.40
+            # The second row is displayed large, so it is sampled on the fine
+            # grid as well. At 0.40 mm the enlargement shows the voxel staircase.
+            sr.RENDER_MM = 0.20 if (final_panel or r == 1) else 0.40
             rgb, alpha = sr.shade(field_of(mask, render_mm=sr.RENDER_MM,
                                            clean=final_panel or r == 1))
             if colour is not None:
@@ -131,9 +134,9 @@ else:
                 rgb = np.clip(lum * tint * 1.45, 0, 1)
             out.append(np.dstack([rgb, alpha])); vr.append(ml(mask))
         imgs.append(out); vols.append(vr)
-    vols = np.array(vols)
-    np.savez_compressed(CACHE, vols=vols,
-                        **{f"p{r}{c}": imgs[r][c] for r in range(2) for c in range(5)})
+    np.savez_compressed(CACHE, vols=np.array([v + [0.0] * (5 - len(v)) for v in vols]),
+                        **{f"p{r}{c}": imgs[r][c]
+                           for r in range(2) for c in range(len(imgs[r]))})
     print("cached panels to", CACHE)
 
 # Both rows are drawn on the crop taken from the union, so the second row
@@ -142,44 +145,49 @@ else:
 # figure gives each one a height in proportion. The millimetres per pixel are
 # identical either way, so the panels stay comparable across rows, and the blank
 # band disappears.
-def row_extent(row):
-    """Fraction of the panel height the row uses, across all of its panels.
-
-    Panels in a row are not the same pixel height, because the recovered airway
-    is rendered on a finer grid than the members, so the extents are combined as
-    fractions of each panel and applied back per panel.
-    """
-    lo, hi = 1.0, 0.0
+def content_box(row):
+    """Rows and columns of pixels the row uses, as fractions of each panel."""
+    r0, r1, c0, c1 = 1.0, 0.0, 1.0, 0.0
     for im in row:
-        idx = np.where((im[..., 3] > 0.01).any(axis=1))[0]
-        if idx.size:
-            lo = min(lo, idx.min() / im.shape[0])
-            hi = max(hi, (idx.max() + 1) / im.shape[0])
-    pad = 0.02
-    return max(lo - pad, 0.0), min(hi + pad, 1.0)
+        a = im[..., 3] > 0.01
+        ri, ci = np.where(a.any(axis=1))[0], np.where(a.any(axis=0))[0]
+        if ri.size:
+            r0 = min(r0, ri.min() / im.shape[0]); r1 = max(r1, (ri.max() + 1) / im.shape[0])
+            c0 = min(c0, ci.min() / im.shape[1]); c1 = max(c1, (ci.max() + 1) / im.shape[1])
+    m = 0.03
+    return max(r0 - m, 0.0), min(r1 + m, 1.0), max(c0 - m, 0.0), min(c1 + m, 1.0)
 
-spans = [row_extent(r) for r in imgs]
-imgs = [[im[int(a * im.shape[0]):int(b * im.shape[0])] for im in row]
-        for row, (a, b) in zip(imgs, spans)]
-heights = [round((b - a) * 1000) for a, b in spans]
-print("  row heights after trimming:", heights)
 
-PANEL_W = 15.2 / 5
-ref = imgs[0][0]
-fig_h = PANEL_W * (ref.shape[0] / ref.shape[1]) * sum(heights) / heights[0] + 0.95
-fig, axgrid = plt.subplots(2, 5, figsize=(15.2, fig_h),
-                           gridspec_kw={"height_ratios": heights})
+# The first row keeps the crop taken from the union, because the spurious
+# material is what it is there to show and cropping it away would defeat the
+# figure. The second row holds only airway, so it is cropped to that and drawn
+# larger. The two rows are therefore not at one scale, and the volume printed
+# above each panel is what carries size between them.
+boxes = [(0.0, 1.0, 0.0, 1.0), content_box(imgs[1])]
+imgs = [[im[int(r0 * im.shape[0]):int(r1 * im.shape[0]),
+            int(c0 * im.shape[1]):int(c1 * im.shape[1])] for im in row]
+        for row, (r0, r1, c0, c1) in zip(imgs, boxes)]
+aspects = [im[0].shape[0] / im[0].shape[1] for im in imgs]
+print("  row aspects after cropping:", [round(a, 3) for a in aspects])
+
+NCOL = 5
+PANEL_W = 15.2 / NCOL
+fig_h = PANEL_W * sum(aspects) + 0.95
+fig, axgrid = plt.subplots(2, NCOL, figsize=(15.2, fig_h),
+                           gridspec_kw={"height_ratios": aspects})
 for r in range(2):
-    for c in range(5):
+    for c in range(NCOL):
         ax = axgrid[r][c]
+        ax.set_axis_off()
+        if c >= len(imgs[r]):
+            continue
         ax.imshow(imgs[r][c])
         ax.set_title(f"{letters[r][c]}  {vols[r][c]:.1f} mL", fontsize=24,
                      color="#1a1a19", pad=8)
-        ax.set_axis_off()
 fig.subplots_adjust(wspace=0.015, hspace=0.10, left=0.005, right=0.995,
                     top=0.94, bottom=0.005)
 for ext in ("pdf", "png"):
     fig.savefig(f"{OUT}.{ext}", dpi=300, bbox_inches="tight", facecolor="white")
 print("wrote", OUT + ".pdf")
 for r in range(2):
-    print(f"  row {r+1} volumes:", [f"{v:.1f}" for v in vols[r]])
+    print(f"  row {r+1} volumes:", [f"{v:.1f}" for v in vols[r][:len(imgs[r])]])

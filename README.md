@@ -14,7 +14,7 @@ code and the result tables. It does not hold patient data.
 |---|---|
 | `benchmark_adult/` | scoring on the ATM'22 test split, whole tree and per generation, and the tables the paper reports |
 | `rule_sweep/` | the 51 combination rules compared on the validation split, and the summariser that ranks them |
-| `benchmark_pediatric/` | the same comparison against expert-annotated pediatric volumes |
+| `benchmark_pediatric/` | the same comparison against expert-annotated pediatric volumes, and the surface distances |
 | `figures/` | the render scripts for the figures in the paper |
 | `FIGURES/` | those figures as rendered, vector and 400 dpi raster |
 
@@ -46,6 +46,16 @@ python benchmark_pediatric/bench_pediatric.py --gt-dir <annotations> --out ped.c
 
 The scripts are CPU only. Skeletonisation inside clDice dominates the runtime,
 at roughly half a core-minute per case per rule.
+
+Surface distances are computed by `benchmark_pediatric/hausdorff.py` for both
+splits. It reports HD, HD95 and ASSD in millimetres. Read HD95. The plain
+Hausdorff distance is set by the single furthest voxel, so an unpruned mask with
+a slab in the chest wall scores 133 mm on the adult benchmark and the number
+stops describing the airway.
+
+`benchmark_pediatric/build_tables.py` prints both tables as they appear in the
+paper, with the best value bold and the second best underlined, and the rank the
+adopted strategy holds in every column.
 
 ## Two things worth knowing before reusing this
 
