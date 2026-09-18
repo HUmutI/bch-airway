@@ -107,26 +107,79 @@ rows = [
 letters = [["(a)", "(b)", "(c)", "(d)", "(e)"],
            ["(f)", "(g)", "(h)", "(i)", "(j)"]]
 
-fig, axgrid = plt.subplots(2, 5, figsize=(15.2, 7.4))
-for r, (row, lets) in enumerate(zip(rows, letters)):
-    for ax, title, (mask, colour) in zip(axgrid[r], lets, row):
-        final_panel = colour is not None
-        sr.RENDER_MM = 0.20 if final_panel else 0.40
-        rgb, alpha = sr.shade(field_of(mask, render_mm=sr.RENDER_MM,
-                                       clean=final_panel or r == 1))
-        if colour is not None:
-            import matplotlib.colors as mc
-            tint = np.array(mc.to_rgb(colour))
-            lum = rgb.mean(axis=2, keepdims=True)
-            rgb = np.clip(lum * tint * 1.45, 0, 1)
-        ax.imshow(np.dstack([rgb, alpha]))
-        ax.set_title(f"{title}  {ml(mask):.1f} mL", fontsize=24,
+# Shading ten panels takes about half an hour, and the layout usually needs
+# several attempts, so the images are cached. Delete the cache to re-render.
+import matplotlib.colors as mc
+CACHE = OUT + "_panels.npz"
+if os.path.exists(CACHE):
+    z = np.load(CACHE)
+    imgs = [[z[f"p{r}{c}"] for c in range(5)] for r in range(2)]
+    vols = z["vols"]
+    print("loaded cached panels from", CACHE)
+else:
+    imgs, vols = [], []
+    for r, row in enumerate(rows):
+        out, vr = [], []
+        for mask, colour in row:
+            final_panel = colour is not None
+            sr.RENDER_MM = 0.20 if final_panel else 0.40
+            rgb, alpha = sr.shade(field_of(mask, render_mm=sr.RENDER_MM,
+                                           clean=final_panel or r == 1))
+            if colour is not None:
+                tint = np.array(mc.to_rgb(colour))
+                lum = rgb.mean(axis=2, keepdims=True)
+                rgb = np.clip(lum * tint * 1.45, 0, 1)
+            out.append(np.dstack([rgb, alpha])); vr.append(ml(mask))
+        imgs.append(out); vols.append(vr)
+    vols = np.array(vols)
+    np.savez_compressed(CACHE, vols=vols,
+                        **{f"p{r}{c}": imgs[r][c] for r in range(2) for c in range(5)})
+    print("cached panels to", CACHE)
+
+# Both rows are drawn on the crop taken from the union, so the second row
+# reserves the height where the first row's debris sits and shows nothing there.
+# Each row is therefore cut to the rows of pixels that row actually uses, and the
+# figure gives each one a height in proportion. The millimetres per pixel are
+# identical either way, so the panels stay comparable across rows, and the blank
+# band disappears.
+def row_extent(row):
+    """Fraction of the panel height the row uses, across all of its panels.
+
+    Panels in a row are not the same pixel height, because the recovered airway
+    is rendered on a finer grid than the members, so the extents are combined as
+    fractions of each panel and applied back per panel.
+    """
+    lo, hi = 1.0, 0.0
+    for im in row:
+        idx = np.where((im[..., 3] > 0.01).any(axis=1))[0]
+        if idx.size:
+            lo = min(lo, idx.min() / im.shape[0])
+            hi = max(hi, (idx.max() + 1) / im.shape[0])
+    pad = 0.02
+    return max(lo - pad, 0.0), min(hi + pad, 1.0)
+
+spans = [row_extent(r) for r in imgs]
+imgs = [[im[int(a * im.shape[0]):int(b * im.shape[0])] for im in row]
+        for row, (a, b) in zip(imgs, spans)]
+heights = [round((b - a) * 1000) for a, b in spans]
+print("  row heights after trimming:", heights)
+
+PANEL_W = 15.2 / 5
+ref = imgs[0][0]
+fig_h = PANEL_W * (ref.shape[0] / ref.shape[1]) * sum(heights) / heights[0] + 0.95
+fig, axgrid = plt.subplots(2, 5, figsize=(15.2, fig_h),
+                           gridspec_kw={"height_ratios": heights})
+for r in range(2):
+    for c in range(5):
+        ax = axgrid[r][c]
+        ax.imshow(imgs[r][c])
+        ax.set_title(f"{letters[r][c]}  {vols[r][c]:.1f} mL", fontsize=24,
                      color="#1a1a19", pad=8)
         ax.set_axis_off()
-fig.subplots_adjust(wspace=0.015, hspace=0.12, left=0.005, right=0.995,
-                    top=0.955, bottom=0.005)
+fig.subplots_adjust(wspace=0.015, hspace=0.10, left=0.005, right=0.995,
+                    top=0.94, bottom=0.005)
 for ext in ("pdf", "png"):
     fig.savefig(f"{OUT}.{ext}", dpi=300, bbox_inches="tight", facecolor="white")
 print("wrote", OUT + ".pdf")
-for r, row in enumerate(rows):
-    print(f"  row {r+1} volumes:", [f"{ml(m):.1f}" for m, _ in row])
+for r in range(2):
+    print(f"  row {r+1} volumes:", [f"{v:.1f}" for v in vols[r]])

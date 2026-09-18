@@ -16,6 +16,7 @@ code and the result tables. It does not hold patient data.
 | `rule_sweep/` | the 51 combination rules compared on the validation split, and the summariser that ranks them |
 | `benchmark_pediatric/` | the same comparison against expert-annotated pediatric volumes |
 | `figures/` | the render scripts for the figures in the paper |
+| `FIGURES/` | those figures as rendered, vector and 400 dpi raster |
 
 `benchmark_adult/shim/` holds the metric implementations as imported, so that
 tree length, branch detection and clDice mean the same thing in every table
@@ -24,7 +25,8 @@ ones used.
 
 ## Data
 
-None of it is included.
+None of it is included. `FIGURES/` holds renders of one examination's airway
+surface, which is part of why this repository is private.
 
 The adult benchmark is the Airway Tree Modeling challenge (ATM'22), which is
 public and must be obtained from the organisers. The pediatric examinations are
