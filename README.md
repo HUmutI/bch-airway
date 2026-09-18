@@ -15,6 +15,7 @@ code and the result tables. It does not hold patient data.
 | `benchmark_adult/` | scoring on the ATM'22 test split, whole tree and per generation, and the tables the paper reports |
 | `rule_sweep/` | the 51 combination rules compared on the validation split, and the summariser that ranks them |
 | `benchmark_pediatric/` | the same comparison against expert-annotated pediatric volumes, and the surface distances |
+| `airmorph_reconstruction/` | our reconstruction of the labelling training procedure, plus the inference and fusion drivers |
 | `figures/` | the render scripts for the figures in the paper |
 | `FIGURES/` | those figures as rendered, vector and 400 dpi raster |
 
@@ -56,6 +57,22 @@ stops describing the airway.
 `benchmark_pediatric/build_tables.py` prints both tables as they appear in the
 paper, with the best value bold and the second best underlined, and the rank the
 adopted strategy holds in every column.
+
+## What is reconstructed, and what you still need from elsewhere
+
+AirMorph published the architecture for anatomical labelling but not the trained
+weights, and the description leaves several things open. `airmorph_reconstruction/`
+is what we wrote to close that gap: the trainer, the loss, the dataset and split
+handling, and the drivers that run the three segmentation models and fuse them.
+The trainer's docstring states each choice the paper does not, so the procedure
+can be argued with rather than guessed at.
+
+It imports AirMorph's own modules, `networks/transformer.py` and `models/`, and
+does not contain them. That code carries no licence in the release we have, so
+it is not ours to redistribute. Obtain it from the authors and drop
+`airmorph_reconstruction/` in as `training/`. The checkpoint it writes has the
+layout the released inference path loads, so a model trained here runs in that
+pipeline unchanged.
 
 ## Two things worth knowing before reusing this
 
