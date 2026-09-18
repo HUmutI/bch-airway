@@ -1,4 +1,5 @@
 # BCH Airway Segmentation and Labelling Project
+
 Code for the paper *Airway Segmentation and Anatomical Branch Assignment in
 Pediatric Chest CT*.
 
@@ -6,6 +7,50 @@ The pipeline segments the airway with an ensemble of three public models,
 retains one connected component chosen by a seed rather than by size, and names
 every branch with a graph transformer. This repository holds the evaluation
 code and the result tables. It does not hold patient data.
+
+<p align="center">
+  <img src="FIGURES/06_spin.gif" width="420"><br>
+  <em>Every branch of one infant airway, coloured by the lobe the model assigns
+  it to. The examination is 0.9 years old.</em>
+</p>
+
+## The pipeline
+
+<p align="center"><img src="FIGURES/00_architecture.png" width="760"></p>
+
+One chest CT is segmented independently by three public models, their masks are
+combined by a bitwise union, and a single connected component is retained by
+seeding it from the AirMorph mask rather than by taking the largest one. That
+mask is skeletonised, the skeleton is cut at bifurcations into branches, and a
+graph transformer names each branch from its geometry and its position in the
+tree.
+
+<p align="center"><img src="FIGURES/03_pipeline.png" width="820"></p>
+
+The same stages as images: the acquired volume, the airway recovered from it,
+its centreline, the centreline cut into 164 branches, and those branches
+carrying anatomical names.
+
+## Why the component is chosen by a seed
+
+<p align="center"><img src="FIGURES/01_member_panels.png" width="820"></p>
+
+The top row is each model's output as it produces it, with the volume of the
+mask above each panel. One model contributes two slab artefacts that together
+exceed the airway in volume, and the union inherits them. Keeping the largest
+connected component would keep a slab and discard the tree. Seeding the
+selection recovers the airway instead. The bottom row applies that same rule to
+each mask on its own, which leaves the airway and nothing else.
+
+## What limits the pipeline
+
+<p align="center"><img src="FIGURES/04_by_generation.png" width="900"></p>
+
+Segmentation accuracy falls steeply with airway generation while naming accuracy
+stays near flat. Once a branch has been recovered it is named reliably, so the
+periphery is a segmentation problem rather than a labelling one. Most reference
+branches sit at the generations where accuracy has already dropped, which is why
+a whole-tree mean flatters the method.
 
 ## What is here
 
