@@ -1,5 +1,4 @@
-# bch-airway
-
+# BCH Airway Segmentation and Labelling Project
 Code for the paper *Airway Segmentation and Anatomical Branch Assignment in
 Pediatric Chest CT*.
 
