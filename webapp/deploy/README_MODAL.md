@@ -45,7 +45,7 @@ GPU function instead of waking an EC2 instance.
 3. **Secrets** (Modal dashboard → Secrets, or CLI):
    ```bash
    modal secret create ghcr REGISTRY_USERNAME=HUmutI REGISTRY_PASSWORD=<GitHub token with read:packages>
-   modal secret create airway-auth AIRWAY_BASIC_AUTH_USER=lab AIRWAY_BASIC_AUTH_PASSWORD='<lab password>'
+   modal secret create airway-auth AIRWAY_BASIC_AUTH_USER=quinlab AIRWAY_BASIC_AUTH_PASSWORD='<lab password>'
    ```
 4. **Deploy:**
    ```bash
@@ -56,7 +56,7 @@ GPU function instead of waking an EC2 instance.
 
 ## Updating
 
-- Lab password: `modal secret create airway-auth AIRWAY_BASIC_AUTH_USER=lab AIRWAY_BASIC_AUTH_PASSWORD='<new>' --force`,
+- Lab password: `modal secret create airway-auth AIRWAY_BASIC_AUTH_USER=quinlab AIRWAY_BASIC_AUTH_PASSWORD='<new>' --force`,
   then `modal app stop airway -y && modal deploy modal_app.py`. A warm web
   container keeps the old secret until it is restarted.
 
@@ -68,7 +68,7 @@ GPU function instead of waking an EC2 instance.
 
 ## Deployed 2026-09-23
 
-https://humuti--airway.modal.run, workspace `humuti`, login `lab`. First
+https://humuti--airway.modal.run, workspace `humuti`, login `quinlab`. First
 deploy: Modal's import of the 20 GB image timed out once ("could not read
 bytes for base index ... timeout"); the second `modal deploy` went through in
 seconds because the import had in fact completed. If it recurs, splitting the

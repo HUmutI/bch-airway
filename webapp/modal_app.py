@@ -11,7 +11,7 @@ commits the Volume after a write, reloads it before a read, and spawns
 run_job instead of starting an EC2 instance when AIRWAY_BACKEND=modal.
 
 Deploy (see deploy/README_MODAL.md):
-    modal secret create airway-auth AIRWAY_BASIC_AUTH_USER=lab AIRWAY_BASIC_AUTH_PASSWORD=...
+    modal secret create airway-auth AIRWAY_BASIC_AUTH_USER=quinlab AIRWAY_BASIC_AUTH_PASSWORD=...
     modal secret create ghcr REGISTRY_USERNAME=<github user> REGISTRY_PASSWORD=<token with read:packages>
     modal deploy modal_app.py
 """
