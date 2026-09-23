@@ -135,7 +135,14 @@ class Job:
             for name, p in list(pending.items()):
                 rc = p.poll()
                 if rc is None:
-                    continue
+                    if time.time() - self.stage(name)["started"] > C.STAGE_TIMEOUT_MIN * 60:
+                        msg = f"Stage timed out after {C.STAGE_TIMEOUT_MIN:g} min and was killed."
+                        self.log(f"TIMEOUT {name}: {msg}")
+                        p._airway_fh.write(f"\n{msg}\n"); p._airway_fh.flush()
+                        self.kill(p)
+                        rc = p.returncode if p.returncode else -1
+                    else:
+                        continue
                 p._airway_fh.close()
                 del pending[name]
                 if rc == 0:
@@ -244,7 +251,7 @@ def run_job(job_dir, mock=False):
         j.s["message"] = "Failed"
         j.s["ended"] = now()
         j.save()
-        j.log(f"job failed: {exc}")
+        j.log(f"job failed: {j.s['error']}")
         raise
 
 

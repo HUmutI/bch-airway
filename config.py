@@ -51,6 +51,10 @@ STAGE_MINUTES = {
     "prepare": 0.15, "airmorph": 1.3, "medpseg": 2.0, "tfenet": 2.6,
     "fuse": 0.3, "label": 1.6, "package": 0.6, "morphometry": 3.0,
 }
+# A stage still running after this long is killed and the job fails. The
+# slowest stage takes ~6 min on an A5000; a T4 with a big scan maybe 3x that.
+# This is only a guard against hangs (e.g. MEDPSeg after a DataLoader crash).
+STAGE_TIMEOUT_MIN = float(os.environ.get("AIRWAY_STAGE_TIMEOUT_MIN", "45"))
 PALETTE = os.path.join(HERE, "web", "palette.json")   # served as /static/palette.json
 
 # Cohort scripts the morphometry stage reuses. Nothing is copied: the web app
