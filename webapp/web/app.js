@@ -208,9 +208,12 @@ const AirwayApp = (() => {
         try {
           await nv.setVolumeRenderIllumination(planes ? -1 : 0);
         } catch (e) { console.warn("render shader", e); }
-        if (ct) nv.setOpacity(0, planes ? 1 : 0);
         nv.opts.renderOverlayBlend = planes ? 1 : 0;
       }
+      // Every call, not only on a mode change: over a slow link the user can
+      // press "3D" before the CT has arrived, and the opacity set here must
+      // still land once it has (otherwise the CT hides the surface inside it).
+      if (ct && nv.volumes.includes(ct)) nv.setOpacity(0, planes ? 1 : 0);
       if (overlay && nv.volumes.includes(overlay)) nv.setOpacity(nv.volumes.indexOf(overlay), opacity());
       nv.opts.show3Dcrosshair = planes && $("ck-xh").checked;
       nv.drawScene();
