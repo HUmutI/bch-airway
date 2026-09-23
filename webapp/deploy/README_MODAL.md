@@ -60,7 +60,7 @@ GPU function instead of waking an EC2 instance.
   then `modal app stop airway -y && modal deploy modal_app.py`. A warm web
   container keeps the old secret until it is restarted.
 
-- HTML/JS/CSS/API change: `modal deploy modal_app.py` (seconds; bump `?v=N`).
+- HTML/JS/CSS/API change: bump `?v=N`, then `modal app stop airway -y && modal deploy modal_app.py`. A plain deploy leaves a warm web container serving the old files.
 - Worker/stage change: rebuild on izmir, push a new tag
   (`ghcr.io/humuti/airway-worker:v2`), set `AIRWAY_WORKER_IMAGE` accordingly
   and deploy.
