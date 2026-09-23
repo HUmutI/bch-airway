@@ -1,3 +1,21 @@
 __pycache__/
 *.pyc
 *_panels.npz
+*.log
+*.tmp
+*.bak*
+
+# never: scans, masks, patient tables, results
+*.nii
+*.nii.gz
+*.mz3
+*.xlsx
+*.docx
+*.pdf
+!evaluation/FIGURES/*.pdf
+
+# built locally, see models/README.md
+models/tarballs/
+webapp/deploy/vendor/
+webapp/jobs/
+webapp/.venv/
