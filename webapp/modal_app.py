@@ -34,6 +34,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 # the three venvs under /opt/airway/envs.
 worker_image = (
     modal.Image.from_registry(WORKER_IMAGE, secret=modal.Secret.from_name("ghcr"), add_python="3.11")
+    .entrypoint([])          # the image's ENTRYPOINT is worker.py; Modal must start its own runner
     .env({
         "AIRWAY_ENVS": "/opt/airway/envs", "AIRWAY_CODE": "/opt/airway/code",
         "AIRWAY_FUSE_SCRIPT": "/opt/airway/fuse_union3.py",

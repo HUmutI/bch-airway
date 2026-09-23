@@ -13,6 +13,7 @@ from datetime import datetime, timezone
 from fastapi import FastAPI, File, HTTPException, UploadFile, Request
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, PlainTextResponse, Response
 from fastapi.staticfiles import StaticFiles
+from starlette.concurrency import run_in_threadpool
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import config as C  # noqa: E402
@@ -99,7 +100,7 @@ async def create_job(request: Request, file: UploadFile = File(...)):
               "client": request.client.host if request.client else None,
               "progress": 0.0, "message": "Waiting for the worker", "error": None}
     json.dump(status, open(os.path.join(d, "status.json"), "w"), indent=1)
-    wake_worker(job_id)
+    await run_in_threadpool(wake_worker, job_id)      # may block on the volume commit
     return {"id": job_id}
 
 

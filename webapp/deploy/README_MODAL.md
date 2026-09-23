@@ -62,11 +62,24 @@ GPU function instead of waking an EC2 instance.
   and deploy.
 - Logs: `modal app logs airway`, or the dashboard.
 
+## Deployed 2026-09-23
+
+https://humuti--airway.modal.run, workspace `humuti`, login `lab`. First
+deploy: Modal's import of the 20 GB image timed out once ("could not read
+bytes for base index ... timeout"); the second `modal deploy` went through in
+seconds because the import had in fact completed. If it recurs, splitting the
+19 GB envs layer in `Dockerfile.worker` into one COPY per env is the fix.
+Cold start of the GPU container is about 2.5 minutes (image load), then the
+pipeline runs at izmir speed.
+
 ## Behaviour to know
 
 - Uploads land in the Volume; `run_job` commits every 5 s so the job page
   moves. Reload/commit are cheap.
 - Two uploads at once run on two GPUs in parallel; there is no queue.
+- The worker image's `ENTRYPOINT` is `worker.py`; `modal_app.py` clears it
+  (`.entrypoint([])`), otherwise Modal's runner is passed to `worker.py` as
+  arguments and the container exits with "unrecognized arguments".
 - A job whose container dies is left `running`; the API's Retry button
   requeues it (the stale-job sweep in `worker.py` is not used here because
   there is no long-lived worker). `AIRWAY_STAGE_TIMEOUT_MIN` still applies.
