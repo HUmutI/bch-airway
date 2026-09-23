@@ -11,7 +11,7 @@ full pipeline output of the airway method: fused airway mask, lobar and
 segmental labels, named branches, an ITK-SNAP-style viewer, and airway
 morphometry. It runs the real models, nothing is approximated.
 
-Lives at `/fileserver/external/quin/ege/airway_web/`. Currently served from
+Lives at `/fileserver/external/quin/ege/airway_web/` (a symlink to `bch-airway/webapp/`). Currently served from
 the lab GPU machine izmir at `http://izmir:8000`. The professor has said izmir
 cannot be used and no tunnels are allowed, so the next step is moving it to
 AWS. That work is prepared but not executed (see "Where it stands").
@@ -185,9 +185,12 @@ Four fixes came out of it, all committed (see `README_AWS.md`, step 1):
 `--shm-size 8g` is mandatory, the AirMorph CPU-path patch, torch-geometric +
 openpyxl in the AirMorph env, and a 45-min stage timeout in the worker.
 
-**Code is in git:** https://github.com/HUmutI/airway-web (private, account
-HUmutI / huseyinumut2004@gmail.com; commits must use that email).
-`jobs/`, `.venv/`, `deploy/vendor/` are ignored.
+**Code is in git:** https://github.com/HUmutI/bch-airway, directory `webapp/`
+(private, account HUmutI / huseyinumut2004@gmail.com; commits must use that
+email). The whole airway project lives in that one repository; its top-level
+README is the entry point. On izmir `airway_web/` is a symlink into the
+checkout (`bch-airway/webapp/`); `jobs/`, `.venv/`, `deploy/vendor/` live
+there and are ignored by git. The earlier `HUmutI/airway-web` repo is archived.
 
 **Worker robustness added 2026-09-23:** a worker stopped mid-job (Ctrl-C,
 SIGTERM, instance stop) now cancels its stages and marks the job failed; a

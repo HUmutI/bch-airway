@@ -118,7 +118,7 @@ On the instance:
 sudo mkdir -p /srv/airway/jobs && sudo apt-get install -y nfs-common git
 echo "FS-ID.efs.REGION.amazonaws.com:/ /srv/airway/jobs nfs4 nfsvers=4.1,rsize=1048576,wsize=1048576,hard,timeo=600,retrans=2,_netdev 0 0" | sudo tee -a /etc/fstab
 sudo mount -a
-sudo git clone <the repo> /srv/airway/app        # or scp airway_web/ there
+sudo git clone https://github.com/HUmutI/bch-airway.git /srv/airway/repo && sudo ln -s /srv/airway/repo/webapp /srv/airway/app
 cat <<EOT | sudo tee /srv/airway/airway.env
 AIRWAY_WORKER_IMAGE=ACCOUNT.dkr.ecr.REGION.amazonaws.com/airway-worker:latest
 AIRWAY_JOBS_HOST=/srv/airway/jobs
@@ -155,7 +155,7 @@ sudo apt-get install -y docker.io docker-compose-v2 nfs-common git
 sudo mkdir -p /srv/airway/jobs
 echo "FS-ID.efs.REGION.amazonaws.com:/ /srv/airway/jobs nfs4 nfsvers=4.1,rsize=1048576,wsize=1048576,hard,timeo=600,retrans=2,_netdev 0 0" | sudo tee -a /etc/fstab
 sudo mount -a
-sudo git clone <the repo> /srv/airway/app
+sudo git clone https://github.com/HUmutI/bch-airway.git /srv/airway/repo && sudo ln -s /srv/airway/repo/webapp /srv/airway/app
 cd /srv/airway/app/deploy
 HASH=$(sudo docker run --rm caddy:2 caddy hash-password --plaintext 'the-lab-password')
 cat <<EOT | sudo tee .env

@@ -25,7 +25,8 @@ for f in "${!MD5[@]}"; do
     echo "have  $f"; continue
   fi
   echo "fetch $f"
-  gh release download "$TAG" -R "$REPO" -p "$f" -D "$DEST" --clobber
+  rm -f "$DEST/$f"
+  gh release download "$TAG" -R "$REPO" -p "$f" -D "$DEST"
   echo "${MD5[$f]}  $DEST/$f" | md5sum -c --quiet - || { echo "checksum mismatch: $f" >&2; exit 1; }
 done
 echo "all three tarballs in $DEST"
