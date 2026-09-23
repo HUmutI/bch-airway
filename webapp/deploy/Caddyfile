@@ -1,0 +1,13 @@
+# HTTPS with an automatic Let's Encrypt certificate, one shared lab login in
+# front of everything. Replace basic_auth with your institution's SSO when IT
+# gives you one (Caddy supports OIDC through the caddy-security plugin).
+{$AIRWAY_DOMAIN} {
+    encode zstd gzip
+    request_body { max_size 1600MB }
+    basic_auth {
+        {$AIRWAY_BASIC_AUTH_USER} {$AIRWAY_BASIC_AUTH_HASH}
+    }
+    reverse_proxy api:8000 {
+        transport http { read_timeout 30m write_timeout 30m }
+    }
+}

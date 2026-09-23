@@ -1,0 +1,13 @@
+# The web API. No GPU, no model code. Tiny.
+#   docker build -f deploy/Dockerfile.api -t airway-api .
+FROM python:3.11-slim
+ENV PYTHONUNBUFFERED=1 PIP_NO_CACHE_DIR=1
+RUN pip install -q "fastapi>=0.110" "uvicorn[standard]>=0.29" python-multipart boto3
+WORKDIR /opt/airway/app
+COPY api api
+COPY web web
+COPY config.py .
+ENV AIRWAY_JOBS=/jobs
+VOLUME /jobs
+EXPOSE 8000
+CMD ["uvicorn", "api.app:app", "--host", "0.0.0.0", "--port", "8000", "--proxy-headers", "--forwarded-allow-ips=*"]

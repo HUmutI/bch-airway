@@ -1,0 +1,20 @@
+{
+  "_comment": "Shared by the packaging stage (ITK-SNAP label files) and the viewer. No blue anywhere: red is the airway, the rest are warm or green.",
+  "airway": "#d62b2b",
+  "centreline": "#f5e663",
+  "lobar": {
+    "trachea": "#5a5550",
+    "Right Upper Lobe": "#eda100",
+    "Right Middle Lobe": "#eb6834",
+    "Right Lower Lobe": "#1baf7a",
+    "Left Upper Lobe": "#e87ba4",
+    "Left Lower Lobe": "#8e5aa8"
+  },
+  "categorical": [
+    "#d62b2b", "#eda100", "#1baf7a", "#e87ba4", "#8e5aa8", "#eb6834",
+    "#7a9a2b", "#c0392b", "#b8860b", "#2e8b57", "#d2691e", "#9b3d6e",
+    "#6b8e23", "#cd5c5c", "#daa520", "#20b2aa", "#e9967a", "#8b4513",
+    "#a0522d", "#bdb76b", "#3cb371", "#ff7f50", "#9acd32", "#c71585",
+    "#f4a460", "#556b2f"
+  ]
+}

@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Airway segmentation and branch labelling</title>
+<link rel="stylesheet" href="/static/app.css?v=6">
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <h1>Airway segmentation and branch labelling</h1>
+    <span class="sub">Pediatric chest CT · research prototype</span>
+  </header>
+
+  <div class="banner">
+    <strong>Research use only.</strong> This is a research prototype and is not approved
+    for clinical use. Its output must not be used for diagnosis, treatment planning, or any
+    other clinical decision. Do not upload data that contains protected health information.
+  </div>
+
+  <div class="card">
+    <h2>Upload a chest CT</h2>
+    <p>One NIfTI volume (<code>.nii</code> or <code>.nii.gz</code>) in Hounsfield units. The
+      pipeline segments the airway with three models, fuses them, and names every branch by
+      lobe and segment. A typical scan takes about six minutes on the current GPU.</p>
+
+    <div class="drop" id="drop">
+      <div>Drop a file here, or click to choose</div>
+      <div class="name" id="fname"></div>
+      <input type="file" id="file" accept=".nii,.nii.gz,.gz" hidden>
+    </div>
+
+    <div class="row">
+      <label class="ack"><input type="checkbox" id="ack">
+        I understand this tool is for research only and is not approved for clinical use.</label>
+    </div>
+    <div class="row">
+      <button class="primary" id="go" disabled>Run the pipeline</button>
+      <span class="hint" id="hint"></span>
+      <span class="err" id="err"></span>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>What you get back</h2>
+    <p>The fused airway mask, the lobar and segmental label maps, the branch instances and
+      the centreline, all as NIfTI in the orientation of the scan you uploaded, plus an
+      in-browser 3D view. Files are kept on the server only as long as needed to serve them.</p>
+  </div>
+
+  <footer>Method: union of AirMorph, MEDPSeg and TfeNet with seeded component selection, then
+    a graph transformer for branch naming. Research prototype.</footer>
+</div>
+<script src="/static/app.js?v=6"></script>
+<script>AirwayApp.upload();</script>
+</body>
+</html>
