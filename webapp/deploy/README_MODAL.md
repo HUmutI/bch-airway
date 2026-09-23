@@ -77,6 +77,10 @@ pipeline runs at izmir speed.
 - Uploads land in the Volume; `run_job` commits every 5 s so the job page
   moves. Reload/commit are cheap.
 - Two uploads at once run on two GPUs in parallel; there is no queue.
+- A `spawn` whose container failed (e.g. a broken image) is retried by Modal
+  once a redeploy fixes the function. On 2026-09-23 that made the first job
+  run twice, the two runs overwriting each other's `status.json`. If you
+  redeploy after a failed spawn, do not spawn the same job by hand as well.
 - The worker image's `ENTRYPOINT` is `worker.py`; `modal_app.py` clears it
   (`.entrypoint([])`), otherwise Modal's runner is passed to `worker.py` as
   arguments and the container exits with "unrecognized arguments".

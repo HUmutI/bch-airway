@@ -83,8 +83,21 @@ def run_job(job_id: str):
     while t.is_alive():
         t.join(5)
         vol.commit()
-    vol.commit()
-    print(f"run_job {job_id} finished", flush=True)
+
+    # Nothing else is writing now; make sure the final status.json is the one
+    # that got committed (re-read after commit+reload, retry if not).
+    import json
+    status = os.path.join(d, "status.json")
+    final = json.load(open(status))
+    for attempt in range(3):
+        json.dump(final, open(status, "w"), indent=1)
+        vol.commit()
+        vol.reload()
+        if json.load(open(status)).get("state") == final.get("state"):
+            break
+        print(f"run_job {job_id}: committed status disagrees, retrying", flush=True)
+        time.sleep(2)
+    print(f"run_job {job_id} finished: {final.get('state')}", flush=True)
 
 
 @app.function(image=api_image, volumes={"/jobs": vol},
