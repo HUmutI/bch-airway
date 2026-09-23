@@ -1,0 +1,240 @@
+diff -ruN -x __pycache__ -x '*.pyc' -x '*.pth' -x '*.pt' -x '*.ckpt' a/AirMorph/data_process/data_save_cuda.py b/AirMorph/data_process/data_save_cuda.py
+--- a/AirMorph/data_process/data_save_cuda.py	2026-07-20 11:23:16.000000000 -0400
++++ b/AirMorph/data_process/data_save_cuda.py	2026-09-01 12:42:26.294373115 -0400
+@@ -1,9 +1,14 @@
+ 
+ import numpy as np
+-import pycuda.autoprimaryctx
+-import pycuda.driver as drv
+-from pycuda.compiler import SourceModule
+-from pycuda import gpuarray
++try:
++    import pycuda.autoprimaryctx
++    import pycuda.driver as drv
++    from pycuda.compiler import SourceModule
++    from pycuda import gpuarray
++    HAVE_PYCUDA = True
++except ImportError:
++    drv = SourceModule = gpuarray = None
++    HAVE_PYCUDA = False
+ import os
+ import nibabel
+ 
+@@ -11,6 +16,12 @@
+ def transform_pred_data(parse, node_idx, pred):
+     """ Transform predicted anatomical label to image. """
+ 
++    if not HAVE_PYCUDA:
++        parse_pred = np.zeros_like(parse, dtype=np.float32)
++        for row, parse_index in enumerate(node_idx):
++            parse_pred[parse == int(parse_index) + 1] = float(pred[row]) + 1
++        return parse_pred
++
+     mod = SourceModule("""
+     __global__ void process_labeling(float* parse_pred, float* whether_labeled,
+                                      float* label_pred, float* parse, int num_task,
+diff -ruN -x __pycache__ -x '*.pyc' -x '*.pth' -x '*.pt' -x '*.ckpt' a/AirMorph/data_process/feature_cuda.py b/AirMorph/data_process/feature_cuda.py
+--- a/AirMorph/data_process/feature_cuda.py	2026-07-20 11:23:16.000000000 -0400
++++ b/AirMorph/data_process/feature_cuda.py	2026-09-01 12:50:38.897473652 -0400
+@@ -5,9 +5,15 @@
+ 
+ import nibabel
+ import numpy as np
+-import pycuda.autoprimaryctx
+-import pycuda.driver as drv
+-from pycuda.compiler import SourceModule
++from scipy import ndimage
++try:
++    import pycuda.autoprimaryctx
++    import pycuda.driver as drv
++    from pycuda.compiler import SourceModule
++    HAVE_PYCUDA = True
++except ImportError:
++    drv = SourceModule = None
++    HAVE_PYCUDA = False
+ 
+ 
+ sys.path.append(os.path.abspath(__file__))
+@@ -26,6 +32,11 @@
+     lr
+ ):
+ 
++    if not HAVE_PYCUDA:
++        return process_iteration_cpu(
++            skel, generation, xt, yt, zt, spacing,
++            parent_map, children_map, mask, lr)
++
+     mod = SourceModule("""
+     __global__ void process_iteration_kernel(
+         float *skel, int* generation,
+@@ -299,6 +310,81 @@
+     return total, node_idx, skl_left_right
+ 
+ 
++def process_iteration_cpu(
++    skel, generation, xt, yt, zt, spacing,
++    parent_map, children_map, mask, lr
++):
++    """NumPy equivalent of AirMorph's feature-extraction CUDA kernel."""
++    max_label = int(skel.max())
++    node_idx = np.full(max_label, -1, dtype=np.int32)
++    total = np.zeros((max_label, 17), dtype=np.float32)
++    side = np.zeros(max_label, dtype=np.int32)
++    spacing = np.asarray(spacing, dtype=float)
++
++    left = mask == 2
++    right = mask == 1
++    bounding_left = np.asarray(find_bb_3D(left), dtype=float)
++    bounding_right = np.asarray(find_bb_3D(right), dtype=float)
++
++    objects = ndimage.find_objects(skel.astype(np.int32))
++    coords_by_label = {}
++    for label, obj in enumerate(objects, 1):
++        if obj is None:
++            continue
++        local = np.argwhere(skel[obj] == label)
++        starts = np.array([sl.start for sl in obj])
++        coords_by_label[label] = local + starts
++
++    for zero_idx in range(max_label):
++        label = zero_idx + 1
++        parents = np.where(parent_map[zero_idx] == 1)[0]
++        if not len(parents):
++            continue
++        parent_label = int(parents[0]) + 1
++        coords = coords_by_label.get(label, np.empty((0, 3), dtype=int))
++        parent_coords = coords_by_label.get(
++            parent_label, np.empty((0, 3), dtype=int))
++        if not len(coords) or not len(parent_coords):
++            continue
++        values = mask[tuple(coords.T)]
++        side[zero_idx] = 2 if np.any(values == 2) else (1 if np.any(values == 1) else 0)
++        mins, maxs = coords.min(axis=0), coords.max(axis=0) + 1
++        pmins, pmaxs = parent_coords.min(axis=0), parent_coords.max(axis=0) + 1
++        center = (mins + maxs) / 2.0
++        delta = (center - np.array([xt, yt, zt])) * spacing
++        extents = (maxs - mins) * spacing
++        length = float(np.linalg.norm(extents))
++
++        if abs(mins[0] - pmins[0]) < abs(mins[1] - pmins[1]):
++            first, second = mins, maxs
++        else:
++            first, second = maxs, mins
++        direction = np.array([second[0]-first[0], first[1]-second[1],
++                              first[2]-second[2]], dtype=float) * spacing
++        norm = np.linalg.norm(direction)
++        angles = np.degrees(np.arccos(np.clip(direction / norm, -1, 1))) \
++            if norm else np.zeros(3)
++
++        relative = np.zeros(3, dtype=float)
++        bounds = bounding_left if side[zero_idx] == 2 else bounding_right
++        if side[zero_idx] in (1, 2):
++            denominators = np.array([bounds[1]-bounds[0], bounds[3]-bounds[2],
++                                     bounds[5]-bounds[4]])
++            starts = np.array([bounds[0], bounds[2], bounds[4]])
++            relative = np.divide(center-starts, denominators,
++                                 out=np.zeros(3), where=denominators != 0)
++            if side[zero_idx] == 2:
++                relative *= -1
++
++        children_num = int(children_map[zero_idx].sum())
++        siblings = max(0, int(children_map[parents[0]].sum()) - 1)
++        volume = len(coords) * float(np.prod(spacing))
++        total[zero_idx] = np.r_[generation[zero_idx] + 1, delta, length, extents,
++                                angles, children_num, siblings, volume, relative]
++        node_idx[zero_idx] = zero_idx
++    return total, node_idx, side
++
++
+ def find_bb_3D(segmentation: np.ndarray):
+     """ Get 3D Bounding box given segmentation mask. """
+ 
+diff -ruN -x __pycache__ -x '*.pyc' -x '*.pth' -x '*.pt' -x '*.ckpt' a/AirMorph/data_process/tree_parse_skelbased.py b/AirMorph/data_process/tree_parse_skelbased.py
+--- a/AirMorph/data_process/tree_parse_skelbased.py	2026-07-20 11:23:16.000000000 -0400
++++ b/AirMorph/data_process/tree_parse_skelbased.py	2026-09-01 12:50:30.266612053 -0400
+@@ -2,8 +2,13 @@
+ from scipy import ndimage
+ import skimage.measure as measure
+ from itertools import combinations
+-import pycuda.driver as drv
+-from pycuda.compiler import SourceModule
++try:
++    import pycuda.driver as drv
++    from pycuda.compiler import SourceModule
++    HAVE_PYCUDA = True
++except ImportError:
++    drv = SourceModule = None
++    HAVE_PYCUDA = False
+ 
+ 
+ ad_matric_global = None
+@@ -74,6 +79,30 @@
+ def adjacent_map_cuda(skeleton, skeleton_parse, cd):
+     """ Compute adjacency map of parsed skeleton. Use pycuda acceleration. """
+ 
++    if not HAVE_PYCUDA:
++        bifurcation = skeleton - skeleton_parse
++        structure = np.ones((3, 3, 3), dtype=bool)
++        bifurcation_labeled, num_features = ndimage.label(
++            bifurcation, structure=structure)
++        num_cd = int(cd.max())
++        adjacent_map = np.zeros((num_cd, num_cd), dtype=np.int32)
++        objects = ndimage.find_objects(bifurcation_labeled)
++        shape = np.asarray(cd.shape)
++        for label, obj in enumerate(objects, 1):
++            if obj is None:
++                continue
++            starts = np.array([max(0, sl.start - 1) for sl in obj])
++            stops = np.array([min(shape[i], sl.stop + 1) for i, sl in enumerate(obj)])
++            expanded = tuple(slice(int(starts[i]), int(stops[i])) for i in range(3))
++            region = bifurcation_labeled[expanded] == label
++            touching = np.unique(cd[expanded][
++                ndimage.binary_dilation(region, structure=structure)])
++            touching = touching[touching > 0] - 1
++            for left, right in combinations(touching, 2):
++                adjacent_map[left, right] = 1
++                adjacent_map[right, left] = 1
++        return adjacent_map
++
+     mod = SourceModule("""
+         __global__ void binary_dilation_and_adjacency_parallel(
+             int *bifurcation_labeled, int *cd, int *ad_matric, int num, int num_cd, int sx, int sy, int sz
+diff -ruN -x __pycache__ -x '*.pyc' -x '*.pth' -x '*.pt' -x '*.ckpt' a/AirMorph/models/labeling_model.py b/AirMorph/models/labeling_model.py
+--- a/AirMorph/models/labeling_model.py	2026-07-20 11:23:16.000000000 -0400
++++ b/AirMorph/models/labeling_model.py	2026-09-15 08:41:58.566392075 -0400
+@@ -61,12 +61,22 @@
+             cs_seg, cs_sub = calculate_CS(
+                 pred[1], pred[2], case.mask_top.cpu().data.numpy(),
+                 self.label_old2new_dictpath)
+-            if cs_seg > best_cs_seg:
++            # Very small/sparse trees can give every checkpoint a zero or NaN
++            # consistency score. The old strict `> 0` selection then returned
++            # None despite valid predictions and crashed the annotation export.
++            # Keep the first real prediction as a fail-safe, while still
++            # replacing it whenever a later checkpoint has a better finite
++            # score. The printed score remains available for expert QC.
++            if (best_pred_seg is None or
++                    (np.isfinite(cs_seg) and
++                     (not np.isfinite(best_cs_seg) or cs_seg > best_cs_seg))):
+                 best_cs_seg = cs_seg
+                 best_pred_seg = pred[1]
+                 best_pred_lob = pred[0]
+                 best_ckpt_seg = ckpt_path
+-            if cs_sub > best_cs_sub:
++            if (best_pred_sub is None or
++                    (np.isfinite(cs_sub) and
++                     (not np.isfinite(best_cs_sub) or cs_sub > best_cs_sub))):
+                 best_cs_sub = cs_sub
+                 best_pred_sub = pred[2]
+                 best_ckpt_sub = ckpt_path
+diff -ruN -x __pycache__ -x '*.pyc' -x '*.pth' -x '*.pt' -x '*.ckpt' a/AirMorph/requirements.txt b/AirMorph/requirements.txt
+--- a/AirMorph/requirements.txt	2026-07-20 11:23:17.000000000 -0400
++++ b/AirMorph/requirements.txt	2026-09-01 13:43:20.129825416 -0400
+@@ -23,6 +23,7 @@
+ fsspec==2024.6.1
+ idna==3.10
+ imageio==2.37.0
++imageio-ffmpeg==0.6.0
+ importlib_metadata==8.0.0
+ importlib_resources==6.5.2
+ inflect==7.3.1

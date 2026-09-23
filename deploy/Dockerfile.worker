@@ -15,7 +15,7 @@ FROM nvidia/cuda:12.4.1-devel-ubuntu22.04 AS build
 ENV DEBIAN_FRONTEND=noninteractive PIP_NO_CACHE_DIR=1 PIP_DISABLE_PIP_VERSION_CHECK=1
 RUN apt-get update && apt-get install -y --no-install-recommends \
         python3.10 python3.10-venv python3.10-dev python3-pip python3-tk \
-        build-essential ninja-build git ca-certificates \
+        build-essential ninja-build git ca-certificates patch \
     && rm -rf /var/lib/apt/lists/*
 
 ARG TORCH_VERSION=2.5.1
@@ -23,10 +23,17 @@ ARG TORCHVISION_VERSION=0.20.1
 ENV A=/opt/airway
 WORKDIR $A
 COPY deploy/vendor/*.tar.gz $A/tarballs/
+COPY deploy/airmorph_cpu_path.patch $A/tarballs/
+# The tarball is upstream AirMorph. The lab copy (or_all3_run/code/AirMorph)
+# carries local edits that make pycuda optional and add NumPy equivalents of
+# its kernels, which is what lets the label stage run without pycuda here.
+# deploy/airmorph_cpu_path.patch is `diff -ruN upstream lab-copy`.
 RUN mkdir -p code && cd code \
     && tar xzf ../tarballs/airmorph_seg.tar.gz \
     && tar xzf ../tarballs/medpseg_airway.tar.gz \
     && tar xzf ../tarballs/tfenet_bas.tar.gz \
+    && patch -p1 < ../tarballs/airmorph_cpu_path.patch \
+    && grep -q HAVE_PYCUDA AirMorph/data_process/tree_parse_skelbased.py \
     && ls -d AirMorph medpseg TfeNet && rm -rf ../tarballs
 
 # --- AirMorph (cu121). pycuda and pyradiomics stripped, as in 00_setup.sh.
