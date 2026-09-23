@@ -38,8 +38,9 @@ follow from the named tree.
 The only path that needs nothing from izmir.
 
 ```bash
-git clone https://github.com/HUmutI/bch-airway.git && cd bch-airway
-./models/download_models.sh webapp/deploy/vendor        # 3 tarballs, 520 MB, needs gh login
+git clone https://github.com/quin-med-harvard-edu/airway-seg-and-labelling.git bch-airway && cd bch-airway
+gh auth login                                            # your own GitHub account; it must have access to this private repo
+./models/download_models.sh webapp/deploy/vendor        # 3 tarballs, 520 MB, from the repo's Release
 cp pipeline/fuse_union3.py webapp/deploy/vendor/
 mkdir -p webapp/deploy/vendor/scripts && cp pipeline/scripts/09_airmorph_morphometry.py cohort90/axis_geometry.py webapp/deploy/vendor/scripts/
 cd webapp
@@ -77,9 +78,10 @@ Needs nvcc 12.4 and a matching driver.
   the web pages say so on every screen. Never commit a scan, a mask, a
   spreadsheet with per-patient rows, or a mapping file. `.gitignore` blocks
   the obvious extensions but is not a substitute for looking.
-- The model tarballs contain third-party code whose licences were not
-  established (see `models/README.md`). This repository stays **private**
-  until that is settled.
+- Our code is MIT licensed (`LICENSE`). The three model tarballs in the
+  Release also carry third-party code and weights (MEDPSeg, TfeNet, the
+  AirMorph segmentation models) under their authors' terms; check those
+  before making the repository or the Release public. `models/README.md`.
 - Fusion connectivity is 6 and fixed across a cohort (`config.sh`).
   Component selection is seeded, never largest. Both are explained in
   `pipeline/README_RUN.md` and `evaluation/README.md`.
@@ -92,6 +94,13 @@ Needs nvcc 12.4 and a matching driver.
 - Web app working on izmir; Docker images built and verified bit-identical
   to the native run; AWS deployment prepared and waiting on an account
   (`webapp/handoff_website.md`, "Where it stands").
+
+## Where the repository lives
+
+Canonical: https://github.com/quin-med-harvard-edu/airway-seg-and-labelling
+(the lab organisation). Mirror: https://github.com/HUmutI/bch-airway. Both
+private; both carry the `models-v1` Release. Push to both
+(`git push origin main && git push bch main` from the izmir checkout).
 
 ## People
 

@@ -3,10 +3,13 @@
 The pipeline runs three published airway segmentation models and one
 published labelling architecture. Their code and trained weights ship as
 three tarballs, ~520 MB, too large for git. They live as assets of the
-GitHub Release `models-v1` of this repository.
+GitHub Release `models-v1` of this repository (on both the organisation
+repo and the mirror).
 
 ```bash
+gh auth login                          # once, your own account, with access to the repo
 ./models/download_models.sh            # -> models/tarballs/, verifies md5
+# MODELS_REPO=HUmutI/bch-airway ./models/download_models.sh   to use the mirror
 ```
 
 | tarball | contents | size | md5 |
@@ -47,12 +50,16 @@ Everything the lab changed in the upstream code is either a `sed` line in
 
 ## Licences
 
-AirMorph's release carries no licence file; MEDPSeg and TfeNet should be
-checked before any of this is made public or redistributed. Inside a private
-lab repository this is internal sharing of code the lab already had. Do not
-flip the repository to public, and do not put the Release assets anywhere
-public, until the licences are established. `evaluation/README.md` says the
-same about `airmorph_reconstruction/`.
+What the lab wrote is MIT licensed (`LICENSE` at the repository root). That
+includes the branch-labelling side of AirMorph: the authors published the
+architecture but not the training procedure or the weights, so the trainer,
+the loss, the data handling (`evaluation/airmorph_reconstruction/`) and the
+labelling checkpoint are the lab's own work.
+
+The tarballs also carry third-party material under its authors' terms: the
+MEDPSeg and TfeNet code and weights, and the AirMorph segmentation code with
+its five checkpoints and the `lungmask` model. Check those licences before
+making the repository or the Release public.
 
 ## Provenance
 

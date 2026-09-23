@@ -9,7 +9,7 @@
 # private), or set MODELS_URL to a mirror that serves the same files.
 set -euo pipefail
 
-REPO="${MODELS_REPO:-HUmutI/bch-airway}"
+REPO="${MODELS_REPO:-quin-med-harvard-edu/airway-seg-and-labelling}"   # mirror: HUmutI/bch-airway
 TAG="${MODELS_TAG:-models-v1}"
 DEST="${1:-$(cd "$(dirname "$0")" && pwd)/tarballs}"
 mkdir -p "$DEST"
