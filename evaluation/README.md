@@ -87,7 +87,13 @@ python benchmark_adult/recompute.py --workers 16 --out results.csv
 python rule_sweep/sweep.py --split val --workers 12 --out val.csv
 python rule_sweep/summarise.py val.csv
 python benchmark_pediatric/bench_pediatric.py --gt-dir <annotations> --out ped.csv
+python benchmark_adult/per_generation.py --workers 10        # Table 2: per generation, members and union
 ```
+
+`per_generation.py` scores the union and each raw member per airway
+generation (`per_generation_atm26_members*.csv`, LaTeX body in
+`per_generation_atm26_members.tex`); `per_generation_atm26.csv` is the earlier
+union-only output the generation figure reads. Both agree row for row.
 
 The scripts are CPU only. Skeletonisation inside clDice dominates the runtime,
 at roughly half a core-minute per case per rule.

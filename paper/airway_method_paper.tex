@@ -411,15 +411,32 @@ all 74 aged one year and above. The comparable adult figure is three of 30.
 
 \subsection{Accuracy by generation}
 Table~\ref{tab:gen} and Figure~\ref{fig:gen} report accuracy generation by
-generation. The whole-tree
-DSC of 93.06 describes no generation well, falling from 98.39 at the trachea to
-74.73 at generation 10 and dropping below 90 by generation 6. The decline is
-driven by precision, 97.33 to 69.17, far more than by sensitivity, 99.50 to
-89.89, so peripherally the method finds the branch and disagrees about its
-boundary. Branch detection degrades more slowly, remaining at 91.04 per cent at
-generation 7 where DSC has already fallen to 80.06, so tree structure survives
-further into the periphery than voxel agreement does. Dispersion widens sharply,
-with the standard deviation of DSC rising from 1.07 to 19.76.
+generation, for the adopted union and for each member alone. For the union the
+whole-tree DSC of 93.06 describes no generation well, falling from 98.39 at the
+trachea to 74.73 at generation 10 and dropping below 90 by generation 6. The
+decline is driven by precision, 97.33 to 69.17, far more than by sensitivity,
+99.50 to 89.89, so peripherally the method finds the branch and disagrees about
+its boundary. Branch detection degrades more slowly, remaining at 91.04 per cent
+at generation 7 where DSC has already fallen to 80.06, so tree structure
+survives further into the periphery than voxel agreement does. Dispersion widens
+sharply, with the standard deviation of DSC rising from 1.07 to 19.76.
+
+The members separate with depth in three different ways. MEDPSeg holds the best
+precision from generation 5 to 9 and the best whole-tree DSC, 93.29 against
+93.06, but its sensitivity falls fastest, from 99.24 at the trachea to 80.46 at
+generation 10, so it is the member that stops following the tree. AirMorph
+tracks the union within a point in DSC and sensitivity at every generation
+except the trachea, where its raw mask covers 92.99 per cent of the lumen and
+the union, adding what the other two find, 99.50. TfeNet's raw mask carries the
+slab artefacts described above, and they land in the periphery: its precision
+is the best of the four at generations 2 to 4 and then collapses to 22.35 at
+generation 10, taking its DSC from 97.55 to 28.14, while its sensitivity stays
+between 78 and 96 throughout. The union has the highest sensitivity at every
+generation from 1 to 9, by 4 to 14 points over MEDPSeg from generation 5
+onward, and a DSC within 1.5 points of the best member at every generation and
+the best at generation 8. That is the trade the union makes and the reason it
+was adopted: it recovers more of the tree than any member, and pays for it in
+boundary precision rather than in missed branches.
 
 \begin{figure}[tbp]
 \centering
@@ -441,26 +458,72 @@ per generation here.}
 
 \begin{table}[tbp]
 \centering
-\caption{Accuracy by airway generation on the benchmark test set, union of all
-three members, over the volumes containing each generation.}
+\caption{Accuracy by airway generation on the benchmark test set, for each
+member alone and for the adopted strategy, over the volumes containing each
+generation (mean $\pm$ SD). The members are scored as the combination consumes
+them, before their own post-processing, as in Table~\ref{tab:variants}; the
+union keeps one seeded component. Best value per generation and column in
+bold.}
 \label{tab:gen}
-\setlength{\tabcolsep}{4pt}\footnotesize
-\begin{tabular}{@{}lccccc@{}}
+\setlength{\tabcolsep}{3pt}\scriptsize
+\begin{tabular}{@{}llccccc@{}}
 \toprule
-Gen & \hd{Ref.\\branches} & \hd{Volumes\\present} & DSC & Sensitivity & Precision \\
+Gen & Strategy & \hd{Ref.\\branches} & \hd{Volumes\\present} & DSC & Sensitivity & Precision \\
 \midrule
-1  & 30   & 30 & $98.39\pm1.07$ & $99.50\pm0.75$ & $97.33\pm2.12$ \\
-2  & 66   & 30 & $97.92\pm1.32$ & $99.44\pm0.98$ & $96.49\pm2.58$ \\
-3  & 128  & 30 & $96.80\pm3.08$ & $98.98\pm1.72$ & $94.94\pm5.67$ \\
-4  & 262  & 30 & $94.70\pm4.44$ & $98.73\pm2.01$ & $91.36\pm7.59$ \\
-5  & 542  & 30 & $90.40\pm8.05$ & $98.22\pm3.27$ & $84.70\pm11.80$ \\
-6  & 985  & 30 & $85.38\pm9.89$ & $96.51\pm4.06$ & $77.89\pm13.55$ \\
-7  & 1482 & 30 & $80.06\pm11.43$ & $94.23\pm6.59$ & $71.28\pm15.23$ \\
-8  & 1444 & 29 & $80.66\pm9.74$ & $94.58\pm5.23$ & $71.83\pm13.85$ \\
-9  & 1008 & 29 & $79.37\pm11.84$ & $94.39\pm6.85$ & $70.70\pm16.05$ \\
-10 & 593  & 29 & $74.73\pm19.76$ & $89.89\pm16.74$ & $69.17\pm20.23$ \\
+1 & AirMorph & 30 & 30 & $95.13 \pm 5.46$ & $92.99 \pm 9.82$ & $\mathbf{98.00} \pm 1.91$ \\
+ & MEDPSeg & & & $\mathbf{98.41} \pm 0.93$ & $99.24 \pm 0.86$ & $97.64 \pm 1.97$ \\
+ & TfeNet & & & $95.59 \pm 3.81$ & $95.24 \pm 3.33$ & $96.13 \pm 5.65$ \\
+ & Union of all three & & & $98.39 \pm 1.07$ & $\mathbf{99.50} \pm 0.75$ & $97.33 \pm 2.12$ \\
+\addlinespace[2pt]
+2 & AirMorph & 66 & 30 & $\mathbf{98.28} \pm 1.20$ & $99.29 \pm 1.02$ & $97.33 \pm 2.35$ \\
+ & MEDPSeg & & & $97.96 \pm 1.14$ & $98.77 \pm 1.39$ & $97.22 \pm 2.36$ \\
+ & TfeNet & & & $97.55 \pm 1.12$ & $95.81 \pm 2.43$ & $\mathbf{99.39} \pm 0.96$ \\
+ & Union of all three & & & $97.92 \pm 1.32$ & $\mathbf{99.44} \pm 0.98$ & $96.49 \pm 2.58$ \\
+\addlinespace[2pt]
+3 & AirMorph & 128 & 30 & $\mathbf{97.22} \pm 2.78$ & $98.76 \pm 1.81$ & $95.90 \pm 5.17$ \\
+ & MEDPSeg & & & $96.77 \pm 2.76$ & $97.95 \pm 2.24$ & $95.84 \pm 5.31$ \\
+ & TfeNet & & & $96.37 \pm 2.19$ & $94.46 \pm 3.97$ & $\mathbf{98.57} \pm 3.53$ \\
+ & Union of all three & & & $96.80 \pm 3.08$ & $\mathbf{98.98} \pm 1.72$ & $94.94 \pm 5.67$ \\
+\addlinespace[2pt]
+4 & AirMorph & 262 & 30 & $95.01 \pm 4.16$ & $98.33 \pm 2.17$ & $92.20 \pm 7.06$ \\
+ & MEDPSeg & & & $\mathbf{95.09} \pm 3.71$ & $96.46 \pm 3.32$ & $94.16 \pm 6.89$ \\
+ & TfeNet & & & $92.03 \pm 15.59$ & $91.94 \pm 5.29$ & $\mathbf{95.27} \pm 17.10$ \\
+ & Union of all three & & & $94.70 \pm 4.44$ & $\mathbf{98.73} \pm 2.01$ & $91.36 \pm 7.59$ \\
+\addlinespace[2pt]
+5 & AirMorph & 542 & 30 & $90.29 \pm 9.19$ & $97.85 \pm 3.56$ & $84.96 \pm 12.75$ \\
+ & MEDPSeg & & & $\mathbf{91.15} \pm 7.07$ & $93.72 \pm 4.85$ & $\mathbf{89.63} \pm 10.76$ \\
+ & TfeNet & & & $84.78 \pm 16.57$ & $89.81 \pm 5.25$ & $84.05 \pm 23.17$ \\
+ & Union of all three & & & $90.40 \pm 8.05$ & $\mathbf{98.22} \pm 3.27$ & $84.70 \pm 11.80$ \\
+\addlinespace[2pt]
+6 & AirMorph & 985 & 30 & $85.61 \pm 11.26$ & $96.20 \pm 5.57$ & $78.83 \pm 14.57$ \\
+ & MEDPSeg & & & $\mathbf{86.42} \pm 8.43$ & $88.89 \pm 7.64$ & $\mathbf{85.16} \pm 11.48$ \\
+ & TfeNet & & & $69.84 \pm 24.65$ & $87.49 \pm 6.64$ & $64.43 \pm 30.06$ \\
+ & Union of all three & & & $85.38 \pm 9.89$ & $\mathbf{96.51} \pm 4.06$ & $77.89 \pm 13.55$ \\
+\addlinespace[2pt]
+7 & AirMorph & 1482 & 30 & $\mathbf{80.21} \pm 11.51$ & $93.80 \pm 8.11$ & $72.02 \pm 15.42$ \\
+ & MEDPSeg & & & $79.50 \pm 12.39$ & $83.52 \pm 11.06$ & $\mathbf{78.27} \pm 15.27$ \\
+ & TfeNet & & & $49.21 \pm 27.69$ & $83.30 \pm 10.05$ & $40.99 \pm 28.56$ \\
+ & Union of all three & & & $80.06 \pm 11.43$ & $\mathbf{94.23} \pm 6.59$ & $71.28 \pm 15.23$ \\
+\addlinespace[2pt]
+8 & AirMorph & 1444 & 29 & $80.21 \pm 11.15$ & $93.64 \pm 6.98$ & $71.83 \pm 14.98$ \\
+ & MEDPSeg & & & $79.70 \pm 9.42$ & $81.09 \pm 11.64$ & $\mathbf{79.65} \pm 11.49$ \\
+ & TfeNet & & & $38.55 \pm 18.28$ & $82.17 \pm 8.89$ & $27.52 \pm 17.34$ \\
+ & Union of all three & & & $\mathbf{80.66} \pm 9.74$ & $\mathbf{94.58} \pm 5.23$ & $71.83 \pm 13.85$ \\
+\addlinespace[2pt]
+9 & AirMorph & 1008 & 29 & $\mathbf{79.44} \pm 13.51$ & $93.56 \pm 8.31$ & $71.83 \pm 17.71$ \\
+ & MEDPSeg & & & $77.92 \pm 11.98$ & $80.69 \pm 11.66$ & $\mathbf{77.28} \pm 15.02$ \\
+ & TfeNet & & & $36.66 \pm 25.28$ & $80.71 \pm 10.67$ & $29.13 \pm 27.34$ \\
+ & Union of all three & & & $79.37 \pm 11.84$ & $\mathbf{94.39} \pm 6.85$ & $70.70 \pm 16.05$ \\
+\addlinespace[2pt]
+10 & AirMorph & 593 & 29 & $\mathbf{76.20} \pm 18.59$ & $\mathbf{90.50} \pm 13.93$ & $\mathbf{70.27} \pm 21.51$ \\
+ & MEDPSeg & & & $72.06 \pm 17.46$ & $80.46 \pm 11.60$ & $70.14 \pm 22.13$ \\
+ & TfeNet & & & $28.14 \pm 28.79$ & $77.98 \pm 13.64$ & $22.35 \pm 27.51$ \\
+ & Union of all three & & & $74.73 \pm 19.76$ & $89.89 \pm 16.74$ & $69.17 \pm 20.23$ \\
 \midrule
-\multicolumn{3}{@{}l}{Whole tree, pooled} & $93.06\pm4.37$ & $98.23\pm1.56$ & $88.71\pm7.08$ \\
+\multicolumn{1}{@{}l}{Whole tree} & AirMorph & & & $91.64 \pm 5.68$ & $95.04 \pm 5.16$ & $89.12 \pm 8.42$ \\
+ & MEDPSeg & & & $\mathbf{93.29} \pm 3.33$ & $94.78 \pm 2.69$ & $\mathbf{92.02} \pm 5.22$ \\
+ & TfeNet & & & $65.23 \pm 16.86$ & $91.44 \pm 3.49$ & $53.68 \pm 21.43$ \\
+ & Union of all three & & & $93.06 \pm 4.37$ & $\mathbf{98.23} \pm 1.56$ & $88.71 \pm 7.08$ \\
 \bottomrule
 \end{tabular}
 \end{table}
