@@ -1,0 +1,22 @@
+# systemd unit for the GPU instance. The worker runs until it has been idle,
+# then the instance stops itself, so the GPU is billed only while it works.
+# The API starts the instance again when the next job is queued.
+#
+#   sudo cp deploy/airway-worker.service /etc/systemd/system/
+#   sudo systemctl enable airway-worker
+[Unit]
+Description=Airway segmentation GPU worker
+After=docker.service network-online.target srv-airway-jobs.mount
+Requires=docker.service
+
+[Service]
+Type=simple
+WorkingDirectory=/srv/airway/app
+EnvironmentFile=-/srv/airway/airway.env
+ExecStart=/usr/bin/docker compose -f deploy/compose.yml run --rm worker
+# Whatever the reason the worker stopped, do not leave a GPU running.
+ExecStopPost=/sbin/shutdown -h now
+Restart=no
+
+[Install]
+WantedBy=multi-user.target

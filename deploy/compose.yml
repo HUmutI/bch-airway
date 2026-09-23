@@ -1,0 +1,58 @@
+# Three services. Run all on one GPU machine, or `api`+`caddy` on a small
+# instance and `worker` on the GPU instance, with /srv/airway/jobs the same
+# network file system (EFS) on both. See README_AWS.md.
+#
+#   docker compose -f deploy/compose.yml up -d api caddy       # web side
+#   docker compose -f deploy/compose.yml run --rm worker        # GPU side
+services:
+  api:
+    image: ${AIRWAY_API_IMAGE:-airway-api}
+    build: { context: .., dockerfile: deploy/Dockerfile.api }
+    restart: unless-stopped
+    volumes:
+      - ${AIRWAY_JOBS_HOST:-/srv/airway/jobs}:/jobs
+    environment:
+      AIRWAY_MAX_UPLOAD_MB: ${AIRWAY_MAX_UPLOAD_MB:-1500}
+      # Set these on the web instance and the API starts the GPU instance
+      # whenever a job is queued.
+      AIRWAY_WORKER_INSTANCE_ID: ${AIRWAY_WORKER_INSTANCE_ID:-}
+      AWS_DEFAULT_REGION: ${AWS_DEFAULT_REGION:-us-east-1}
+    expose: ["8000"]
+
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    ports: ["80:80", "443:443"]
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    environment:
+      AIRWAY_DOMAIN: ${AIRWAY_DOMAIN:-localhost}
+      # `docker run --rm caddy:2 caddy hash-password` gives this value
+      AIRWAY_BASIC_AUTH_USER: ${AIRWAY_BASIC_AUTH_USER:-lab}
+      AIRWAY_BASIC_AUTH_HASH: ${AIRWAY_BASIC_AUTH_HASH:-}
+    depends_on: [api]
+
+  worker:
+    image: ${AIRWAY_WORKER_IMAGE:-airway-worker}
+    build: { context: .., dockerfile: deploy/Dockerfile.worker }
+    volumes:
+      - ${AIRWAY_JOBS_HOST:-/srv/airway/jobs}:/jobs
+    environment:
+      AIRWAY_PARALLEL: ${AIRWAY_PARALLEL:-1}
+      AIRWAY_TFENET_CROP: ${AIRWAY_TFENET_CROP:-1}
+    shm_size: "8gb"
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    # exits after 15 idle minutes; the host's systemd unit then stops the instance
+    command: ["--exit-when-idle", "15", "--retain-days", "30"]
+
+volumes:
+  caddy_data:
+  caddy_config:

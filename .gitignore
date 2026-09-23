@@ -1,0 +1,9 @@
+# uploads and results: de-identified scans, but still never in version control
+jobs/
+.venv/
+# model tarballs etc., rebuilt by deploy/prepare.sh
+deploy/vendor/
+__pycache__/
+*.pyc
+*.tmp
+*.bak_*

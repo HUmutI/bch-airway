@@ -1,0 +1,92 @@
+# The GPU worker: the three model environments, the compiled TfeNet ops, the
+# weights, and the pipeline. Built once, runs on any machine with an NVIDIA
+# driver and the container toolkit. About 20 GB.
+#
+#   ./deploy/prepare.sh
+#   docker build -f deploy/Dockerfile.worker -t airway-worker .
+#
+# The recipe is or_all3_run/scripts/00_setup.sh, step for step: cu121 torch for
+# AirMorph and MEDPSeg (their pins), cu124 torch for TfeNet to match the nvcc
+# that compiles DAConv/DSConv. Compiling needs no GPU: TORCH_CUDA_ARCH_LIST
+# names the cards the kernels are built for (T4, A100, A10G/A5000, L4, H100).
+
+# ---------------------------------------------------------------- builder
+FROM nvidia/cuda:12.4.1-devel-ubuntu22.04 AS build
+ENV DEBIAN_FRONTEND=noninteractive PIP_NO_CACHE_DIR=1 PIP_DISABLE_PIP_VERSION_CHECK=1
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        python3.10 python3.10-venv python3.10-dev python3-pip python3-tk \
+        build-essential ninja-build git ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+ARG TORCH_VERSION=2.5.1
+ARG TORCHVISION_VERSION=0.20.1
+ENV A=/opt/airway
+WORKDIR $A
+COPY deploy/vendor/*.tar.gz $A/tarballs/
+RUN mkdir -p code && cd code \
+    && tar xzf ../tarballs/airmorph_seg.tar.gz \
+    && tar xzf ../tarballs/medpseg_airway.tar.gz \
+    && tar xzf ../tarballs/tfenet_bas.tar.gz \
+    && ls -d AirMorph medpseg TfeNet && rm -rf ../tarballs
+
+# --- AirMorph (cu121). pycuda and pyradiomics stripped, as in 00_setup.sh.
+RUN python3.10 -m venv envs/airmorph \
+    && envs/airmorph/bin/pip install -q --upgrade pip wheel \
+    && envs/airmorph/bin/pip install -q "torch==${TORCH_VERSION}" --index-url https://download.pytorch.org/whl/cu121 \
+    && grep -vE '^(pycuda|pyradiomics)([=<>!~[:space:]]|$)' code/AirMorph/requirements.txt > /tmp/req_airmorph.txt \
+    && envs/airmorph/bin/pip install -q numpy==1.26.4 Cython setuptools wheel \
+    && (envs/airmorph/bin/pip install -q -r /tmp/req_airmorph.txt \
+        || envs/airmorph/bin/pip install -q -r /tmp/req_airmorph.txt --no-build-isolation) \
+    && envs/airmorph/bin/python -c "import sys; sys.path.insert(0,'code/AirMorph'); import torch, SimpleITK, skimage, nibabel; from segmentator.airway_segmentator import AirwayAtlasBinaryAirwaySegmentator; print('AirMorph env OK', torch.__version__)"
+
+# --- MEDPSeg (cu121). setup.py patched as in 00_setup.sh: no lober.ckpt check,
+#     SimpleITK pin that has a cp310 wheel, numpy kept below 2 for cc3d.
+RUN sed -i 's|^check_weight(os.path.join("medpseg", "lober.ckpt"))|#\0|' code/medpseg/setup.py \
+    && sed -i "s|'SimpleITK==2.0.2'|'SimpleITK==2.4.1'|" code/medpseg/setup.py \
+    && python3.10 -m venv envs/medpseg \
+    && envs/medpseg/bin/pip install -q --upgrade pip wheel \
+    && envs/medpseg/bin/pip install -q "torch==${TORCH_VERSION}" "torchvision==${TORCHVISION_VERSION}" --index-url https://download.pytorch.org/whl/cu121 \
+    && echo "numpy<2" > /tmp/c.txt && envs/medpseg/bin/pip install -q numpy==1.26.4 \
+    && envs/medpseg/bin/pip install -q code/medpseg -c /tmp/c.txt \
+    && envs/medpseg/bin/python -c "import os, site, numpy, torch, torchvision, cc3d; assert numpy.__version__.startswith('1.'); p=os.path.join(site.getsitepackages()[0],'medpseg'); assert os.path.exists(os.path.join(p,'poly_medseg_25d_fix.ckpt')), p; print('MEDPSeg env OK')" \
+    && envs/medpseg/bin/medpseg --help > /dev/null
+
+# --- TfeNet (cu124) + CUDA extensions compiled for the cards we may run on.
+ENV TORCH_CUDA_ARCH_LIST="7.5;8.0;8.6;8.9;9.0" CUDA_HOME=/usr/local/cuda
+RUN python3.10 -m venv envs/tfenet \
+    && envs/tfenet/bin/pip install -q --upgrade pip wheel setuptools ninja \
+    && envs/tfenet/bin/pip install -q "torch==${TORCH_VERSION}" --index-url https://download.pytorch.org/whl/cu124 \
+    && envs/tfenet/bin/pip install -q -r code/TfeNet/requirements.txt \
+    && (cd code/TfeNet/DAConv && $A/envs/tfenet/bin/pip install -e . --no-build-isolation) \
+    && (cd code/TfeNet/DSConv && $A/envs/tfenet/bin/pip install -e . --no-build-isolation) \
+    && (cd code/TfeNet && $A/envs/tfenet/bin/python -c "import torch, DACONV_CUDA, DSCONV_CUDA; print('TfeNet ops OK', torch.__version__)") \
+    && find envs code -name "*.o" -delete && rm -rf code/TfeNet/DAConv/build code/TfeNet/DSConv/build
+
+# ---------------------------------------------------------------- runtime
+# torch wheels carry their own CUDA libraries, so the runtime image only needs
+# the driver hooks from the CUDA base image plus python and a few shared libs.
+FROM nvidia/cuda:12.4.1-base-ubuntu22.04
+ENV DEBIAN_FRONTEND=noninteractive PYTHONUNBUFFERED=1
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        python3.10 python3.10-venv python3-tk libgl1 libglib2.0-0 libgomp1 ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+ENV A=/opt/airway
+COPY --from=build $A/envs $A/envs
+COPY --from=build $A/code $A/code
+COPY deploy/vendor/fuse_union3.py $A/fuse_union3.py
+COPY deploy/vendor/scripts $A/scripts
+COPY worker $A/app/worker
+COPY api $A/app/api
+COPY web $A/app/web
+COPY config.py README.md $A/app/
+
+ENV AIRWAY_ENVS=$A/envs AIRWAY_CODE=$A/code \
+    AIRWAY_FUSE_SCRIPT=$A/fuse_union3.py \
+    AIRWAY_MORPHOMETRY_SCRIPT=$A/scripts/09_airmorph_morphometry.py \
+    AIRWAY_AXIS_GEOMETRY_SCRIPT=$A/scripts/axis_geometry.py \
+    AIRWAY_JOBS=/jobs \
+    NVIDIA_VISIBLE_DEVICES=all NVIDIA_DRIVER_CAPABILITIES=compute,utility
+VOLUME /jobs
+WORKDIR $A/app
+# The worker itself needs nothing beyond the standard library.
+ENTRYPOINT ["python3.10", "worker/worker.py"]

@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Job · Airway segmentation</title>
+<link rel="stylesheet" href="/static/app.css?v=6">
+</head>
+<body>
+<div class="wrap wide">
+  <header class="top">
+    <h1><a href="/" style="color:inherit;text-decoration:none">Airway segmentation and branch labelling</a></h1>
+    <span class="sub"><span id="jobid"></span> · <a href="/">New upload</a></span>
+  </header>
+
+  <div class="banner">
+    <strong>Research use only.</strong> Not approved for clinical use. Output must not inform
+    diagnosis or treatment.
+  </div>
+
+  <div class="card">
+    <h2 id="title">Running</h2>
+    <p id="msg"></p>
+    <div class="bar" id="bar"><i></i></div>
+    <div class="pct"><span id="pct">0%</span><span id="eta"></span></div>
+    <ol class="stages" id="stages"></ol>
+    <details style="margin-top:12px"><summary class="hint">Log</summary>
+      <pre class="log" id="log"></pre></details>
+    <p class="err" id="err"></p>
+    <div class="row" id="failrow" hidden>
+      <button class="primary" id="retry">Retry this scan</button>
+      <a class="hint" href="/">Upload a different scan</a>
+    </div>
+  </div>
+
+  <div class="card" id="results" hidden>
+    <h2>Segmentation</h2>
+    <div class="stats" id="stats"></div>
+    <div class="toolbar">
+      <span class="group" id="layouts">
+        <button class="ghost on" data-layout="grid">2 × 2</button>
+        <button class="ghost" data-layout="0">Axial</button>
+        <button class="ghost" data-layout="1">Coronal</button>
+        <button class="ghost" data-layout="2">Sagittal</button>
+        <button class="ghost" data-layout="4">3D</button>
+      </span>
+      <span style="flex:1"></span>
+      <button class="ghost" id="shot">Screenshot</button>
+    </div>
+    <div class="viewer">
+      <div class="canvas-wrap">
+        <canvas id="gl"></canvas>
+        <div class="readout" id="readout">Click a slice to read position and value</div>
+      </div>
+      <aside class="layers">
+        <section>
+          <h3>Image</h3>
+          <div class="presets" id="presets">
+            <button class="ghost on" data-w="-1000,300">Lung</button>
+            <button class="ghost" data-w="-160,240">Soft tissue</button>
+            <button class="ghost" data-w="-450,1050">Bone</button>
+          </div>
+          <div class="hint" id="wl"></div>
+          <div class="hint">Right-drag on a slice for free window and level.</div>
+        </section>
+        <section>
+          <h3>Overlay</h3>
+          <label class="radio"><input type="radio" name="ov" value="airway" checked><i style="background:#d62b2b"></i>Airway</label>
+          <label class="radio"><input type="radio" name="ov" value="lobar"><i class="multi"></i>Lobar labels</label>
+          <label class="radio"><input type="radio" name="ov" value="segmental"><i class="multi"></i>Segmental labels</label>
+          <label class="radio"><input type="radio" name="ov" value="branches"><i class="multi"></i>Branch instances</label>
+          <label class="slider">Opacity <input type="range" id="ov-op" min="0" max="100" value="55"></label>
+          <label class="check"><input type="checkbox" id="ck-cl">Centreline</label>
+        </section>
+        <section>
+          <h3>3D</h3>
+          <label class="check"><input type="checkbox" id="ck-mesh" checked>Surface</label>
+          <label class="slider">Surface opacity <input type="range" id="mesh-op" min="10" max="100" value="100"></label>
+          <label class="check"><input type="checkbox" id="ck-xh" checked>Crosshair</label>
+          <label class="check" title="Only applies to the 3D layout. Off shows the surface alone."><input type="checkbox" id="ck-sl3d">Slice planes in 3D view</label>
+        </section>
+        <section>
+          <h3>Legend</h3>
+          <div class="legend" id="legend"></div>
+        </section>
+      </aside>
+    </div>
+    <h2 style="margin-top:18px">Download</h2>
+    <div class="downloads" id="dl"></div>
+    <p class="hint" style="margin-top:8px">Label files open in ITK-SNAP with these colours: load a label volume as
+      segmentation, then Segmentation → Import Label Descriptions.</p>
+  </div>
+
+  <div class="card" id="morph" hidden>
+    <h2>Airway morphometry</h2>
+    <p id="morph-msg">Measuring the tree, the viewer above is already usable.</p>
+    <div id="morph-body"></div>
+  </div>
+
+  <footer>Files are served from this job only and are not shared. Research prototype.</footer>
+</div>
+<script type="module">
+  import { Niivue, NVImage } from "https://cdn.jsdelivr.net/npm/@niivue/niivue@0.44.0/dist/index.js";
+  window.Niivue = Niivue; window.NVImage = NVImage;
+  window.dispatchEvent(new Event("niivue-ready"));
+</script>
+<script src="/static/app.js?v=6"></script>
+<script>AirwayApp.job();</script>
+</body>
+</html>
