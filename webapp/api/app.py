@@ -7,20 +7,32 @@ later, by pointing JOBS_DIR somewhere else.
 
     ./.venv/bin/uvicorn api.app:app --host 0.0.0.0 --port 8000
 """
-import json, os, re, secrets, sys
+import base64, json, os, re, secrets, sys
 from datetime import datetime, timezone
 
 from fastapi import FastAPI, File, HTTPException, UploadFile, Request
-from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, PlainTextResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, PlainTextResponse, Response
 from fastapi.staticfiles import StaticFiles
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import config as C  # noqa: E402
-from api.cloud import wake_worker  # noqa: E402
+from api.cloud import before_read, wake_worker  # noqa: E402
 
 WEB = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "web")
 app = FastAPI(title="Airway segmentation and branch labelling", docs_url=None, redoc_url=None)
 app.mount("/static", StaticFiles(directory=WEB), name="static")
+
+
+if C.BASIC_AUTH_USER and C.BASIC_AUTH_PASSWORD:
+    _expected = base64.b64encode(f"{C.BASIC_AUTH_USER}:{C.BASIC_AUTH_PASSWORD}".encode()).decode()
+
+    @app.middleware("http")
+    async def basic_auth(request: Request, call_next):
+        header = request.headers.get("authorization", "")
+        if header.startswith("Basic ") and secrets.compare_digest(header[6:], _expected):
+            return await call_next(request)
+        return Response("Authentication required", status_code=401,
+                        headers={"WWW-Authenticate": 'Basic realm="airway", charset="UTF-8"'})
 
 # Anything the packaging and morphometry stages write, nothing else: plain
 # names, one of a few extensions, no path separators.
@@ -33,6 +45,7 @@ JOB_ID = re.compile(r"^[a-z0-9]{16}$")
 def job_dir(job_id):
     if not JOB_ID.match(job_id):
         raise HTTPException(404, "no such job")
+    before_read()
     d = os.path.join(C.JOBS_DIR, job_id)
     if not os.path.isdir(d):
         raise HTTPException(404, "no such job")
@@ -86,7 +99,7 @@ async def create_job(request: Request, file: UploadFile = File(...)):
               "client": request.client.host if request.client else None,
               "progress": 0.0, "message": "Waiting for the worker", "error": None}
     json.dump(status, open(os.path.join(d, "status.json"), "w"), indent=1)
-    wake_worker()
+    wake_worker(job_id)
     return {"id": job_id}
 
 
@@ -115,7 +128,7 @@ def retry_job(job_id: str):
     s.update(state="queued", progress=0.0, error=None, message="Waiting for the worker",
              retried=s.get("retried", 0) + 1)
     json.dump(s, open(os.path.join(d, "status.json"), "w"), indent=1)
-    wake_worker()
+    wake_worker(job_id)
     return {"id": job_id, "state": "queued"}
 
 
@@ -150,6 +163,7 @@ def get_file(job_id: str, name: str):
 
 @app.get("/api/jobs")
 def list_jobs(limit: int = 30):
+    before_read()
     rows = []
     if os.path.isdir(C.JOBS_DIR):
         for d in os.listdir(C.JOBS_DIR):

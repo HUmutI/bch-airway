@@ -65,10 +65,19 @@ AXIS_GEOMETRY_SCRIPT = os.environ.get("AIRWAY_AXIS_GEOMETRY_SCRIPT",
                                       os.path.join(BASE, "FINAL_AIRWAY_90_RESULTS_2026-09-16",
                                                    "reproducibility_scripts", "axis_geometry.py"))
 
-# Cloud: when set, the API asks EC2 to start this instance whenever a job is
-# queued. The instance runs deploy/airway-worker.service and stops itself when
-# idle. Empty means "a worker is always running somewhere", as on izmir.
-WORKER_INSTANCE_ID = os.environ.get("AIRWAY_WORKER_INSTANCE_ID", "")
+# Where the GPU is: "local" (a worker polls JOBS_DIR, as on izmir), "aws"
+# (the API starts a GPU instance per queued job, deploy/README_AWS.md) or
+# "modal" (JOBS_DIR is a Modal Volume and the API spawns the GPU function,
+# modal_app.py). api/cloud.py implements the three.
+BACKEND = os.environ.get("AIRWAY_BACKEND", "local")
+WORKER_INSTANCE_ID = os.environ.get("AIRWAY_WORKER_INSTANCE_ID", "")   # aws
+MODAL_APP = os.environ.get("AIRWAY_MODAL_APP", "airway")                # modal
+MODAL_VOLUME = os.environ.get("AIRWAY_MODAL_VOLUME", "airway-jobs")     # modal
+
+# Shared lab login in front of every page, when both are set. On izmir they
+# are not; on AWS Caddy does it; on Modal there is no Caddy, so the API does.
+BASIC_AUTH_USER = os.environ.get("AIRWAY_BASIC_AUTH_USER", "")
+BASIC_AUTH_PASSWORD = os.environ.get("AIRWAY_BASIC_AUTH_PASSWORD", "")
 
 # The viewer keeps the CT on the GPU at 4 bytes per voxel. A display copy is
 # resampled so that it never exceeds this many voxels (60 M = 240 MB).
