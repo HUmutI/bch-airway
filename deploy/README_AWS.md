@@ -24,7 +24,7 @@ nothing in the pipeline changes between izmir and AWS.
 | t3.small web instance | ≈ $15 / month | or t3.micro on the free tier |
 | EFS | $0.30 / GB-month | ≈ 300 MB per job; `--retain-days 30` keeps it small |
 | ECR image storage | $0.10 / GB-month | worker image ≈ 20 GB → $2 |
-| domain | ≈ $12 / year | Route 53, or a free subdomain from BCH / METU IT |
+| domain | $0 | free `*.duckdns.org` subdomain to start; a real domain later is ≈ $12 / year |
 
 Fifty scans a month ≈ $15 GPU + $15 web + $3 storage ≈ **$35 / month**.
 A GPU instance left running around the clock would be $730 / month. The idle
@@ -36,12 +36,23 @@ Filestore. Everything in `deploy/` is plain Docker and works there too; only
 
 ## Before you start
 
-- An AWS account. Ask BCH research computing first: they may already have one
-  with a signed HIPAA agreement and research credits, and a hospital project
-  should live in it rather than in a personal account.
+Decisions taken 2026-09-23: a **personal AWS account**, region **us-east-1**,
+domain a free **DuckDNS** subdomain until IT provides one.
+
+- AWS account: create an IAM user (e.g. `airway-deploy`) with
+  `AdministratorAccess`, make an access key, `aws configure` on izmir
+  (`~/.local/bin/aws` is installed there). Longer term a BCH research
+  computing account with a HIPAA agreement is the right home; move then.
+- **Quota, first thing:** Service Quotas → EC2 → *Running On-Demand G and VT
+  instances* → request 4 vCPUs. New accounts start at 0; approval takes one
+  to two days and nothing GPU-side can happen before it.
 - Apply for [AWS Cloud Credit for Research](https://aws.amazon.com/government-education/research-and-technical-computing/cloud-credit-for-research/)
   in parallel. It routinely covers a year of this.
-- Pick the domain. `airway.<lab-domain>` from IT is best, free and trusted.
+- Domain: at duckdns.org (GitHub login) create `<name>.duckdns.org`, keep the
+  token out of git (it goes in the web instance's `.env` only). Point it at
+  the Elastic IP once there is one. Let's Encrypt issues for duckdns.org but
+  not for `*.amazonaws.com` names, which is why some name is needed at all.
+  Swapping in a real domain later is one line in `.env`.
 - Only de-identified NIfTI. Same rule as on izmir. The site says so on every page.
 
 ## 1. Build the images (on izmir, once, outside the sandbox)
@@ -57,9 +68,23 @@ Test the worker image on izmir's own GPU before it goes anywhere:
 
 ```bash
 mkdir -p /tmp/jobs_docker
-docker run --rm --gpus all -v /tmp/jobs_docker:/jobs airway-worker --exit-when-idle 1
+docker run --rm --gpus all --shm-size 8g -v /tmp/jobs_docker:/jobs airway-worker --exit-when-idle 1
 # then, while it runs, drop a job in: copy an existing jobs/<id>/ with state "queued"
 ```
+
+Things the first builds (2026-09-23) ran into, all fixed in the recipe:
+
+- `--shm-size 8g` is mandatory (compose has it). With Docker's default 64 MB
+  `/dev/shm`, MEDPSeg's DataLoader workers die and the process then hangs.
+- The vendored AirMorph tarball is upstream code; the lab copy has local edits
+  that make pycuda optional. `deploy/airmorph_cpu_path.patch` is that diff,
+  applied in the Dockerfile. Regenerate it if `or_all3_run/code/AirMorph`
+  changes: `diff -ruN <upstream> <lab copy> -x __pycache__ -x '*.pyc' -x '*.pth' -x '*.pt' -x '*.ckpt'`.
+- The worker kills any stage running longer than `AIRWAY_STAGE_TIMEOUT_MIN`
+  (45) and, on SIGTERM / instance stop, cancels the running stages and marks
+  the job failed so Retry works. A job found `running` at worker start is
+  marked failed the same way.
+- Files the container writes into the jobs directory are root-owned.
 
 Push to ECR (replace ACCOUNT and REGION):
 
