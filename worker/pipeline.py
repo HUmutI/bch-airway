@@ -119,6 +119,18 @@ class Job:
     def wait(self, procs):
         """Wait on {name: Popen}, ticking progress, raising on the first failure."""
         pending = dict(procs)
+        try:
+            self._wait(pending)
+        except (KeyboardInterrupt, SystemExit):
+            # Stages run in their own session, so Ctrl-C / SIGTERM does not reach
+            # them; without this they keep the GPU and the job looks stuck.
+            for other, q in pending.items():
+                self.kill(q)
+                self.set(other, "cancelled")
+                self.log(f"cancelled {other} (worker interrupted)")
+            raise
+
+    def _wait(self, pending):
         while pending:
             for name, p in list(pending.items()):
                 rc = p.poll()
@@ -225,9 +237,10 @@ def run_job(job_dir, mock=False):
         j.s["ended"] = now()
         j.save()
         j.log("job done")
-    except Exception as exc:
+    except BaseException as exc:
         j.s["state"] = "failed"
-        j.s["error"] = str(exc)
+        j.s["error"] = (str(exc) if isinstance(exc, Exception)
+                        else "The worker was stopped while this job ran. Press Retry.")
         j.s["message"] = "Failed"
         j.s["ended"] = now()
         j.save()
