@@ -56,6 +56,10 @@ GPU function instead of waking an EC2 instance.
 
 ## Updating
 
+- Lab password: `modal secret create airway-auth AIRWAY_BASIC_AUTH_USER=lab AIRWAY_BASIC_AUTH_PASSWORD='<new>' --force`,
+  then `modal app stop airway -y && modal deploy modal_app.py`. A warm web
+  container keeps the old secret until it is restarted.
+
 - HTML/JS/CSS/API change: `modal deploy modal_app.py` (seconds; bump `?v=N`).
 - Worker/stage change: rebuild on izmir, push a new tag
   (`ghcr.io/humuti/airway-worker:v2`), set `AIRWAY_WORKER_IMAGE` accordingly
