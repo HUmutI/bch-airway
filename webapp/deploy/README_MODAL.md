@@ -35,7 +35,8 @@ GPU function instead of waking an EC2 instance.
    Dockerfile, so it pulls the image izmir already built and verified:
    ```bash
    gh auth refresh -h github.com -s write:packages,read:packages     # once
-   echo "$(gh auth token)" | docker login ghcr.io -u HUmutI --password-stdin
+   # gh >= 2.14: TOKEN=$(gh auth token); older gh: read oauth_token from ~/.config/gh/hosts.yml
+   echo "$TOKEN" | docker login ghcr.io -u HUmutI --password-stdin
    docker tag airway-worker ghcr.io/humuti/airway-worker:v1
    docker push ghcr.io/humuti/airway-worker:v1                         # 20 GB
    ```
