@@ -1,6 +1,6 @@
 # Handoff: airway segmentation web app
 
-Written 2026-09-22 for whoever picks this up next. Only the website is
+Written 2026-09-22, updated 2026-09-23, for whoever picks this up next. Only the website is
 covered here. The paper, the cohort run and the GitHub repos are separate
 work and are not described.
 
@@ -164,8 +164,9 @@ retry, viewer, 3D airway-only, morphometry, downloads. Two real GPU runs on
 **Cloud move: prepared, not executed.** `deploy/`:
 - `Dockerfile.worker`: multi-stage, replicates `00_setup.sh` (cu121 torch for
   AirMorph/MEDPSeg, cu124 for TfeNet, DAConv/DSConv compiled for arch
-  7.5–9.0 so it runs on T4/A100/A10G/L4/H100). No pycuda (labelling already
-  uses its CPU path). Runtime image on `nvidia/cuda:12.4.1-base`. ≈ 20 GB.
+  7.5–9.0 so it runs on T4/A100/A10G/L4/H100). No pycuda: the lab's
+  AirMorph edits that make it optional are applied from
+  `deploy/airmorph_cpu_path.patch`. Runtime image on `nvidia/cuda:12.4.1-base`. ≈ 20 GB.
 - `Dockerfile.api`, `compose.yml` (api + caddy + worker), `Caddyfile` (HTTPS
   + basic auth), `airway-worker.service` (worker exits when idle → instance
   stops), `prepare.sh` (already run; `deploy/vendor/` holds the three model
@@ -175,17 +176,32 @@ retry, viewer, 3D airway-only, morphometry, downloads. Two real GPU runs on
   self-stopping after 15 idle minutes, EFS as the shared jobs directory.
   ≈ $35/month at 50 scans; $730/month if the GPU is left running.
 
-**Images have not been built** (no Docker daemon reachable from the
-sandbox). Next concrete steps, in order:
-1. On izmir, outside the sandbox:
-   `cd airway_web && docker build -f deploy/Dockerfile.worker -t airway-worker .`
-   (30–45 min), then `docker build -f deploy/Dockerfile.api -t airway-api .`.
-   Test: `docker run --rm --gpus all -v /tmp/jobs_docker:/jobs airway-worker --exit-when-idle 1`
-   with a queued job dir copied in. Expect first-build issues in the pip
-   steps; the recipe comments in the Dockerfile explain each pin.
-2. Decide the account (BCH research computing vs personal), get a domain from
-   IT, apply for AWS Cloud Credit for Research.
-3. Follow `README_AWS.md` steps 2–4.
+**Images built and verified on izmir, 2026-09-23.** `airway-worker` (19.9 GB)
+and `airway-api` exist in izmir's local Docker. A full run of sub-0053 in the
+container produced results bit-identical to the native run (Dice 1.0000 on
+every label volume, 239 branches, same morphometry). `docker stop` mid-job
+was tested: stages killed, GPU freed, job marked failed with Retry.
+Four fixes came out of it, all committed (see `README_AWS.md`, step 1):
+`--shm-size 8g` is mandatory, the AirMorph CPU-path patch, torch-geometric +
+openpyxl in the AirMorph env, and a 45-min stage timeout in the worker.
+
+**Code is in git:** https://github.com/HUmutI/airway-web (private, account
+HUmutI / huseyinumut2004@gmail.com; commits must use that email).
+`jobs/`, `.venv/`, `deploy/vendor/` are ignored.
+
+**Worker robustness added 2026-09-23:** a worker stopped mid-job (Ctrl-C,
+SIGTERM, instance stop) now cancels its stages and marks the job failed; a
+job found `running` at worker start is marked failed too. Before this, a
+restart left the job "running" forever (that is what job `f081be85` was).
+
+Decisions: personal AWS account, us-east-1, DuckDNS subdomain for now.
+Next concrete steps, in order:
+1. Owner: AWS account + IAM key, **G-instance vCPU quota request** (the long
+   pole, 1–2 days), DuckDNS subdomain + token, lab password.
+2. `aws configure` on izmir (`~/.local/bin/aws` is installed), push both
+   images to ECR (`README_AWS.md` step 1).
+3. `README_AWS.md` steps 2–4. The web instance and DNS can be set up before
+   the GPU quota arrives.
 4. Replace basic auth with institutional SSO when IT provides it.
 
 ## Ideas not yet built (agreed as worthwhile, none started)
