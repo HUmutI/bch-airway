@@ -37,6 +37,9 @@ RUN mkdir -p code && cd code \
     && ls -d AirMorph medpseg TfeNet && rm -rf ../tarballs
 
 # --- AirMorph (cu121). pycuda and pyradiomics stripped, as in 00_setup.sh.
+#     torch-geometric and openpyxl are not in upstream requirements.txt but the
+#     labelling code (data_process/dataset.py) imports the first; the lab env
+#     has both installed by hand.
 RUN python3.10 -m venv envs/airmorph \
     && envs/airmorph/bin/pip install -q --upgrade pip wheel \
     && envs/airmorph/bin/pip install -q "torch==${TORCH_VERSION}" --index-url https://download.pytorch.org/whl/cu121 \
@@ -44,7 +47,8 @@ RUN python3.10 -m venv envs/airmorph \
     && envs/airmorph/bin/pip install -q numpy==1.26.4 Cython setuptools wheel \
     && (envs/airmorph/bin/pip install -q -r /tmp/req_airmorph.txt \
         || envs/airmorph/bin/pip install -q -r /tmp/req_airmorph.txt --no-build-isolation) \
-    && envs/airmorph/bin/python -c "import sys; sys.path.insert(0,'code/AirMorph'); import torch, SimpleITK, skimage, nibabel; from segmentator.airway_segmentator import AirwayAtlasBinaryAirwaySegmentator; print('AirMorph env OK', torch.__version__)"
+    && envs/airmorph/bin/pip install -q torch-geometric==2.6.1 openpyxl==3.1.5 \
+    && envs/airmorph/bin/python -c "import sys; sys.path.insert(0,'code/AirMorph'); import torch, SimpleITK, skimage, nibabel, torch_geometric, openpyxl; from segmentator.airway_segmentator import AirwayAtlasBinaryAirwaySegmentator; from classifier.airway_classifier import AirwayAtlasMultiAnatomyAirwayClassifier; print('AirMorph env OK', torch.__version__)"
 
 # --- MEDPSeg (cu121). setup.py patched as in 00_setup.sh: no lober.ckpt check,
 #     SimpleITK pin that has a cp310 wheel, numpy kept below 2 for cc3d.
