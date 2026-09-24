@@ -346,16 +346,23 @@ with the code.\footnote{\url{https://github.com/quin-med-harvard-edu/airway-seg-
 The \emph{web application} runs the pipeline as described, unchanged, on a CT
 uploaded as a de-identified NIfTI volume. The three members, the union, the
 seeded component selection, the skeletonisation and the branch assignment run
-as separate stages on one 24\,GB GPU, about 17 minutes for a
+as separate stages on one 24\,GB GPU, about ten minutes for a
 $512\times512\times800$ scan, and the page reports progress stage by stage.
 The result opens in a viewer laid out like ITK-SNAP, three orthogonal slices
 and a 3D pane sharing one crosshair, with the airway, lobar, segmental and
-per-branch labels as switchable overlays, the airway and lobe surfaces in 3D,
-and the branch under the cursor named in a readout. Below the viewer the tree
-is measured: length, inscribed and cross-sectional diameter, branching angle
-and generation for every branch, the central airways and their ratios, and
-per-generation and per-lobe summaries. Every volume, the ITK-SNAP label
-descriptions and the measurements can be downloaded. The service runs on
+per-branch labels as switchable overlays, the airway surface in 3D coloured
+by whichever labelling is selected, and the branch under the cursor named in
+a readout. Below the viewer the tree is measured: length, inscribed and
+cross-sectional diameter, branching angle and generation for every branch,
+the central airways and their ratios, and per-generation and per-lobe
+summaries. Given the patient's age, every measurement is also reported as a
+percentile against the 90-examination cohort of Section~\ref{sec:data}. A
+set of checks on the result is shown with it, such as a trachea that does not
+reach the lung apex, a lobe to which no branch was assigned, or a tree far
+sparser than the cohort, so that a reader is told what to distrust. Every
+volume, the ITK-SNAP label descriptions and the measurements can be
+downloaded, including a bundle that opens directly on the original CT in
+ITK-SNAP. The service runs on
 serverless GPU capacity that exists only while a scan is being processed, so a
 lab without a GPU machine can offer it at a cost of cents per scan. It is
 restricted to research use and to de-identified data, and says so on every
@@ -525,9 +532,9 @@ generation (mean $\pm$ SD). The metrics are those of Table~\ref{tab:variants}
 restricted to the branches of one generation: TLD is the fraction of that
 generation's centreline covered, BND the fraction of its branches with at
 least 80 per cent of their centreline covered. The members are scored as the
-combination consumes them, before their own post-processing; the union of all
-three keeps one seeded component. Generations 1 to 7 are present in all 30
-volumes and 8 to 10 in 29; the reference holds 30, 66, 128, 262, 542, 985,
+combination consumes them, before their own post-processing, and the union of
+all three keeps one seeded component. Generations 1 to 7 are present in all
+30 volumes and 8 to 10 in 29. The reference holds 30, 66, 128, 262, 542, 985,
 1482, 1444, 1008 and 593 branches at generations 1 to 10. Best value per
 generation and column in bold.}
 \label{tab:gen}
