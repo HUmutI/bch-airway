@@ -104,7 +104,7 @@ def run_job(job_id: str):
               secrets=[modal.Secret.from_name("airway-auth")],
               scaledown_window=300, timeout=600)
 @modal.concurrent(max_inputs=50)
-@modal.asgi_app(label="airway")
+@modal.asgi_app(label="airway-seg")
 def web():
     sys.path.insert(0, "/root/app")
     from api.app import app as fastapi_app

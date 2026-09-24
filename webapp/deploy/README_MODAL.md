@@ -70,13 +70,21 @@ GPU function instead of waking an EC2 instance.
 
 ## Deployed 2026-09-23
 
-https://humuti--airway.modal.run, workspace `humuti`, login `quinlab`. First
+https://humuti--airway-seg.modal.run, workspace `humuti`, login `quinlab`. First
 deploy: Modal's import of the 20 GB image timed out once ("could not read
 bytes for base index ... timeout"); the second `modal deploy` went through in
 seconds because the import had in fact completed. If it recurs, splitting the
 19 GB envs layer in `Dockerfile.worker` into one COPY per env is the fix.
 Cold start of the GPU container is about 2.5 minutes (image load), then the
 pipeline runs at izmir speed.
+
+## Custom domain
+
+A real `airway-seg.<domain>` needs Modal's custom-domain feature, which is on
+the Team plan ($250/month) only. A free DuckDNS name cannot point at Modal
+without a proxy of our own, and Cloudflare's free Workers cap uploads at
+100 MB. What is free is the label: `@modal.asgi_app(label="airway-seg")`
+gives `https://humuti--airway-seg.modal.run`, which is the address in use.
 
 ## Behaviour to know
 
