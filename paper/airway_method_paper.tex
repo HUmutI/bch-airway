@@ -415,8 +415,10 @@ because that is what the next stage depends on.
 \caption{Each model alone and every combination of them, on the 30 held-out
 benchmark volumes. Component selection is the seeded rule throughout, and the
 individual models are scored as the combination consumes them, before their own
-post-processing. The strategy adopted for the rest of the paper is the union of
-all three members, for the reason given in the text. HD95 is the 95th
+post-processing. Majority vote is a voxel-wise two-of-three vote of the raw
+masks, and ``selected'' applies the seeded component selection to it. The
+strategy adopted for the rest of the paper is the union of all three members,
+for the reason given in the text. HD95 is the 95th
 percentile of the surface distance in millimetres, which the plain Hausdorff
 distance cannot replace here because a single voxel sets it. Best value per
 column in bold, second best underlined.}
