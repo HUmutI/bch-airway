@@ -11,7 +11,7 @@ const AirwayApp = (() => {
   let NORM = null, AGE = null;
   const loadNorm = async () => {
     if (NORM) return NORM;
-    try { NORM = await (await fetch("/static/normative.json?v=11")).json(); } catch (_) { NORM = { metrics: {}, per_generation: {} }; }
+    try { NORM = await (await fetch("/static/normative.json?v=12")).json(); } catch (_) { NORM = { metrics: {}, per_generation: {} }; }
     return NORM;
   };
   const bandOf = (age) => {
@@ -236,6 +236,7 @@ const AirwayApp = (() => {
       sliceType: 3, multiplanarLayout: 2, multiplanarShowRender: 1, multiplanarPadPixels: 3,
       isSliceMM: true, show3Dcrosshair: true, isOrientCube: true, isRadiologicalConvention: true,
       isHighResolutionCapable: false, isColorbar: false, dragMode: 1,
+      isDepthPickMesh: true,                 // a click on the 3D surface moves the crosshair there
       crosshairColor: [0.93, 0.63, 0.0, 1], crosshairWidth: 1, backColor: [0, 0, 0, 1],
       meshThicknessOn2D: 0, meshXRay: 0, textHeight: 0.04, loadingText: "loading",
     });
@@ -374,19 +375,66 @@ const AirwayApp = (() => {
     $("shot").onclick = () => nv.saveScene(`airway_${id}.png`).catch(e => fail("screenshot", e));
     nv.onIntensityChange = () => { showWL(); $("presets").querySelectorAll("button").forEach(b => b.classList.remove("on")); };
 
-    // ---- readout ------------------------------------------------------------------
+    // ---- readout and the click bubble -----------------------------------------------
+    // The label under the crosshair, searching a small neighbourhood because
+    // the surface (and a click on it) sits on the boundary between the label
+    // and the background.
+    const labelAt = (img, v, radius = 2) => {
+      const x0 = Math.round(v[0]), y0 = Math.round(v[1]), z0 = Math.round(v[2]);
+      const get = (x, y, z) => { try { return img.getValue(x, y, z) || 0; } catch (_) { return 0; } };
+      let val = get(x0, y0, z0);
+      if (val > 0) return val;
+      for (let r = 1; r <= radius; r++) {
+        const counts = {};
+        for (let dx = -r; dx <= r; dx++) for (let dy = -r; dy <= r; dy++) for (let dz = -r; dz <= r; dz++) {
+          const t = get(x0 + dx, y0 + dy, z0 + dz);
+          if (t > 0) counts[t] = (counts[t] || 0) + 1;
+        }
+        const keys = Object.keys(counts);
+        if (keys.length) return +keys.reduce((a, b) => counts[a] >= counts[b] ? a : b);
+      }
+      return 0;
+    };
+    let lastClick = null;
+    $("gl").addEventListener("pointerdown", (e) => { lastClick = { x: e.offsetX, y: e.offsetY, t: Date.now() }; });
+    let bubbleTimer = null;
+    const bubble = (html, at) => {
+      const el = $("pick");
+      if (!el) return;
+      clearTimeout(bubbleTimer);
+      if (!html) { el.hidden = true; return; }
+      el.innerHTML = html; el.hidden = false;
+      const wrap = el.parentElement, maxX = wrap.clientWidth - el.offsetWidth - 8;
+      el.style.left = `${Math.max(8, Math.min(at.x + 12, maxX))}px`;
+      el.style.top = `${Math.max(8, at.y - el.offsetHeight - 12)}px`;
+      bubbleTimer = setTimeout(() => { el.hidden = true; }, 6000);
+    };
     let branchesImg = null;
     nv.onLocationChange = (d) => {
       try {
         const v = d.vox, mm = d.mm;
         const hu = d.values && d.values[0] ? Math.round(d.values[0].value) : "";
-        let br = "";
+        let br = "", brId = 0;
         if (branchesImg && v) {
-          const val = branchesImg.getValue(Math.round(v[0]), Math.round(v[1]), Math.round(v[2]));
-          if (val > 0) br = ` · ${L.brNames[String(val)] || `branch ${val}`} (#${val})`;
+          brId = labelAt(branchesImg, v);
+          if (brId > 0) br = ` · ${L.brNames[String(brId)] || `branch ${brId}`} (#${brId})`;
         }
         say(`voxel ${Array.from(v).map(Math.round).join(", ")} · ` +
             `${Array.from(mm).slice(0, 3).map(x => x.toFixed(1)).join(", ")} mm · ${hu} HU${br}`);
+        // the bubble names what the selected overlay says at the click
+        if (lastClick && Date.now() - lastClick.t < 1500 && v) {
+          const src = overlayKey === "branches" ? branchesImg : (overlay && nv.volumes.includes(overlay) ? overlay : branchesImg);
+          const key = src === branchesImg ? "branches" : overlayKey;
+          const names = key === "lobar" ? L.lobNames : key === "segmental" ? L.segNames : L.brNames;
+          const colours = key === "lobar" ? L.lobColours : key === "segmental" ? L.segColours : L.brColours;
+          const val = src ? labelAt(src, v) : 0;
+          if (val > 0) {
+            const name = names[String(val)] || `label ${val}`;
+            const extra = key !== "branches" && brId > 0 ? `<small>branch #${brId}${L.brNames[String(brId)] ? " · " + esc(L.brNames[String(brId)]) : ""}</small>` : "";
+            bubble(`<i style="background:${colours[String(val)] || "#999"}"></i>${esc(name)}${extra}`, lastClick);
+          } else bubble(null);
+          lastClick = null;
+        }
       } catch (_) {}
     };
 

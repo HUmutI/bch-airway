@@ -148,3 +148,9 @@ table.m tr.link:hover td { background: #fbf7f3; cursor: pointer; }
 .canvas-wrap .loading { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
   background: rgba(31, 29, 26, .85); color: #fff; font-size: 14px; padding: 10px 16px; border-radius: 6px;
   pointer-events: none; white-space: nowrap; }
+
+.canvas-wrap .pick { position: absolute; background: rgba(255,255,255,.96); color: var(--text); font-size: 13px; font-weight: 600;
+  padding: 6px 10px; border-radius: 6px; border: 1px solid var(--line); box-shadow: 0 2px 8px rgba(0,0,0,.25);
+  pointer-events: none; white-space: nowrap; display: flex; gap: 8px; align-items: center; }
+.canvas-wrap .pick i { width: 12px; height: 12px; border-radius: 3px; display: inline-block; flex: none; }
+.canvas-wrap .pick small { font-weight: 400; color: var(--muted); margin-left: 4px; }
