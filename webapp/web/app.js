@@ -11,7 +11,7 @@ const AirwayApp = (() => {
   let NORM = null, AGE = null;
   const loadNorm = async () => {
     if (NORM) return NORM;
-    try { NORM = await (await fetch("/static/normative.json?v=14")).json(); } catch (_) { NORM = { metrics: {}, per_generation: {} }; }
+    try { NORM = await (await fetch("/static/normative.json?v=15")).json(); } catch (_) { NORM = { metrics: {}, per_generation: {} }; }
     return NORM;
   };
   const bandOf = (age) => {
@@ -622,7 +622,7 @@ const AirwayApp = (() => {
             num(r.centerline_length_mm), num(r.diameter_mean_mm), num(r.diameter_min_mm), num(r.tortuosity_length_ratio, 2),
             r.branch_angle_deg != null ? num(r.branch_angle_deg, 0) : "–", num(r.volume_mm3, 0), esc(r.geometry_qc_flags || "")])) + `</div>`;
     }
-    html += `<p class="mnote">Measured on the segmented lumen with the centreline of the fused mask. Diameters:
+    html += `<p class="mnote">${AGE != null ? "<b>P</b> badges are percentiles for age: P36 means larger than in 36 % of healthy children of the same two-year age band (about 30 reference scans). &lt;P3 and &gt;P98 are outside what the reference can resolve; below P5 and above P95 are highlighted. Rows without a badge have no reference (e.g. generations beyond 10). " : ""}Measured on the segmented lumen with the centreline of the fused mask. Diameters:
       "inscribed" is twice the distance-transform radius along the centreline, "cross section" is the mean of short and
       long axis of the lumen in planes perpendicular to the centreline. Angles are between a branch and its parent.
       Research use only.</p>`;

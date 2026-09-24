@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Job · Airway segmentation</title>
-<link rel="stylesheet" href="/static/app.css?v=14">
+<link rel="stylesheet" href="/static/app.css?v=15">
 </head>
 <body>
 <div class="wrap wide">
@@ -41,6 +41,9 @@
       <label class="age">Patient age <input type="number" id="age" min="0" max="18" step="0.1" placeholder="years"> y</label>
       <button class="ghost" id="agesave">Save</button>
       <span class="hint" id="agehint">Percentiles are against 90 healthy children, 10 per two-year band, one scan per patient.</span>
+      <span class="hint pexp"><b>P36</b> means the value is larger than in 36 % of healthy children of the same age band
+        (about 30 scans: the band and its neighbours). Values beyond what 30 scans can resolve show as <b>&lt;P3</b> or <b>&gt;P98</b>;
+        below P5 and above P95 are highlighted.</span>
     </div>
     <div class="stats" id="stats"></div>
     <div class="toolbar">
@@ -107,13 +110,14 @@
   </div>
 
   <footer>Files are served from this job only and are not shared. Research prototype.</footer>
+  <footer class="credit">Airway segmentation and branch labelling · QUIN Lab, Boston Children's Hospital · built by Hüseyin Umut Işık</footer>
 </div>
 <script type="module">
   import { Niivue, NVImage, NVMesh } from "https://cdn.jsdelivr.net/npm/@niivue/niivue@0.44.0/dist/index.js";
   window.Niivue = Niivue; window.NVImage = NVImage; window.NVMesh = NVMesh;
   window.dispatchEvent(new Event("niivue-ready"));
 </script>
-<script src="/static/app.js?v=14"></script>
+<script src="/static/app.js?v=15"></script>
 <script>AirwayApp.job();</script>
 </body>
 </html>
