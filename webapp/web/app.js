@@ -11,7 +11,7 @@ const AirwayApp = (() => {
   let NORM = null, AGE = null;
   const loadNorm = async () => {
     if (NORM) return NORM;
-    try { NORM = await (await fetch("/static/normative.json?v=10")).json(); } catch (_) { NORM = { metrics: {}, per_generation: {} }; }
+    try { NORM = await (await fetch("/static/normative.json?v=11")).json(); } catch (_) { NORM = { metrics: {}, per_generation: {} }; }
     return NORM;
   };
   const bandOf = (age) => {
@@ -297,11 +297,20 @@ const AirwayApp = (() => {
       nv.opts.show3Dcrosshair = planes && $("ck-xh").checked;
       nv.drawScene();
     };
+    // Which surface is shown follows the overlay radio: the plain red airway,
+    // the per-lobe surfaces, or the airway coloured by segment / branch
+    // (mesh_airway_segmental.mz3, mesh_airway_branches.mz3, written by the
+    // package stage with one RGBA per vertex). Older results lack the
+    // coloured ones and fall back to the red surface.
+    const hasMesh = (n) => !!meshByName(n);
     const showMeshes = () => {
-      const on = $("ck-mesh").checked, lob = overlayKey === "lobar", op = $("mesh-op").value / 100;
+      const on = $("ck-mesh").checked, op = $("mesh-op").value / 100;
+      const want = overlayKey === "lobar" ? "lobes"
+                 : (overlayKey === "segmental" || overlayKey === "branches") && hasMesh(`airway_${overlayKey}`) ? `airway_${overlayKey}`
+                 : "airway";
       for (const m of nv.meshes) {
         const base = meshBase(m);
-        const vis = on && (base === "airway" ? !lob : (lob && !!lobeOn[+base.split("_")[1]]));
+        const vis = on && (want === "lobes" ? (base.startsWith("lobe_") && !!lobeOn[+base.split("_")[1]]) : base === want);
         if (m.visible !== vis) nv.setMeshProperty(m.id, "visible", vis);
         if (m.opacity !== op) nv.setMeshProperty(m.id, "opacity", op);
       }
@@ -421,6 +430,18 @@ const AirwayApp = (() => {
       showMeshes();
       nv.setSliceType(4);                    // nothing but the surface yet: show it in 3D
     } catch (e) { fail("surfaces", e); }
+    // the label-coloured copies of the surface, each optional
+    const NVMesh = window.NVMesh;
+    const loadColoured = async () => {
+      if (!NVMesh || !NVMesh.loadFromUrl) return;
+      for (const key of ["segmental", "branches"]) {
+        try {
+          const m = await NVMesh.loadFromUrl({ url: f(`mesh_airway_${key}.mz3`), gl: nv.gl, name: meshName(`airway_${key}`), visible: false });
+          nv.addMesh(m);
+        } catch (_) { /* older result without coloured surfaces */ }
+      }
+      showMeshes();
+    };
 
     // 2. a coarse CT quickly (older results do not have it), then the labels
     let low = null;
@@ -448,6 +469,7 @@ const AirwayApp = (() => {
     }
     busy(null);
     say("Click a slice to read position and value. Left-drag rotates the 3D view.");
+    loadColoured().catch(() => {});
     load("branches").then(img => { branchesImg = img; window._branchesImg = img; }).catch(() => {});
   }
 

@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Job · Airway segmentation</title>
-<link rel="stylesheet" href="/static/app.css?v=10">
+<link rel="stylesheet" href="/static/app.css?v=11">
 </head>
 <body>
 <div class="wrap wide">
@@ -108,11 +108,11 @@
   <footer>Files are served from this job only and are not shared. Research prototype.</footer>
 </div>
 <script type="module">
-  import { Niivue, NVImage } from "https://cdn.jsdelivr.net/npm/@niivue/niivue@0.44.0/dist/index.js";
-  window.Niivue = Niivue; window.NVImage = NVImage;
+  import { Niivue, NVImage, NVMesh } from "https://cdn.jsdelivr.net/npm/@niivue/niivue@0.44.0/dist/index.js";
+  window.Niivue = Niivue; window.NVImage = NVImage; window.NVMesh = NVMesh;
   window.dispatchEvent(new Event("niivue-ready"));
 </script>
-<script src="/static/app.js?v=10"></script>
+<script src="/static/app.js?v=11"></script>
 <script>AirwayApp.job();</script>
 </body>
 </html>

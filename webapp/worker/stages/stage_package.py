@@ -70,14 +70,44 @@ def resample(img, spacing, size, nearest):
 
 
 # ------------------------------------------------------------------------ meshes
-def write_mz3(path, verts, faces):
-    """MZ3: 16-byte header, int32 faces, float32 vertices. Read natively by NiiVue."""
+def write_mz3(path, verts, faces, rgba=None):
+    """MZ3: 16-byte header, int32 faces, float32 vertices, optionally one RGBA
+    byte quadruple per vertex (attribute bit 4). Read natively by NiiVue."""
     verts = np.ascontiguousarray(verts, dtype=np.float32)
     faces = np.ascontiguousarray(faces, dtype=np.int32)
+    attr = 3 if rgba is None else 7
     with open(path, "wb") as fh:
-        fh.write(struct.pack("<HHIII", 0x5A4D, 3, len(faces), len(verts), 0))
+        fh.write(struct.pack("<HHIII", 0x5A4D, attr, len(faces), len(verts), 0))
         fh.write(faces.tobytes())
         fh.write(verts.tobytes())
+        if rgba is not None:
+            fh.write(np.ascontiguousarray(rgba, dtype=np.uint8).tobytes())
+
+
+def vertex_colours(verts_zyx, label_zyx, colour_of, default=(150, 150, 150)):
+    """RGBA per vertex from the label under it. The marching-cubes surface sits
+    between labelled and unlabelled voxels, so a vertex whose own voxel is 0
+    takes the commonest label in its 3x3x3 neighbourhood."""
+    shape = np.array(label_zyx.shape)
+    idx = np.clip(np.rint(verts_zyx).astype(int), 0, shape - 1)
+    lab = label_zyx[idx[:, 0], idx[:, 1], idx[:, 2]].astype(int)
+    miss = np.flatnonzero(lab == 0)
+    if miss.size:
+        offs = np.array([(dz, dy, dx) for dz in (-1, 0, 1) for dy in (-1, 0, 1) for dx in (-1, 0, 1)])
+        nb = np.clip(idx[miss][:, None, :] + offs[None, :, :], 0, shape - 1)      # (m, 27, 3)
+        vals = label_zyx[nb[..., 0], nb[..., 1], nb[..., 2]].astype(int)          # (m, 27)
+        for k, row in zip(miss, vals):
+            nz = row[row > 0]
+            if nz.size:
+                lab[k] = np.bincount(nz).argmax()
+    rgba = np.empty((len(lab), 4), dtype=np.uint8)
+    rgba[:, 3] = 255
+    cache = {}
+    for i, v in enumerate(lab):
+        if v not in cache:
+            cache[v] = colour_of(int(v)) if v > 0 else default
+        rgba[i, :3] = cache[v]
+    return rgba
 
 
 def mesh_from_mask(arr_zyx, img, sigma_vox=0.7, min_faces=100):
@@ -124,7 +154,7 @@ def mesh_from_mask(arr_zyx, img, sigma_vox=0.7, min_faces=100):
     # NiiVue's world space is RAS. LPS -> RAS flips x and y.
     xyz[:, 0] *= -1
     xyz[:, 1] *= -1
-    return xyz, faces
+    return xyz, faces, verts
 
 
 # ------------------------------------------------------------- ITK-SNAP labels
@@ -348,8 +378,29 @@ def main():
         img = src_imgs["airway_mask.nii.gz"]
         m = mesh_from_mask(sitk.GetArrayFromImage(img) > 0, img)
         if m is not None:
-            write_mz3(os.path.join(res, "mesh_airway.mz3"), *m)
-            meshes.append({"file": "mesh_airway.mz3", "kind": "airway", "faces": int(len(m[1]))})
+            xyz, faces, vzyx = m
+            write_mz3(os.path.join(res, "mesh_airway.mz3"), xyz, faces)
+            meshes.append({"file": "mesh_airway.mz3", "kind": "airway", "faces": int(len(faces))})
+            # the same surface coloured by each label map, for the 3D view.
+            # Colour assignment mirrors web/app.js (palette by key order).
+            cat = pal["categorical"]
+            schemes = {}
+            if "airway_lobar.nii.gz" in src_imgs and labels.get("lobar"):
+                lob_names = labels["lobar"]
+                col = {int(v): hex_rgb(pal["lobar"].get(n, cat[i % len(cat)])) for i, (v, n) in enumerate(lob_names.items())}
+                schemes["lobar"] = ("airway_lobar.nii.gz", lambda v, c=col: c.get(v, (150, 150, 150)))
+            if "airway_segmental.nii.gz" in src_imgs and labels.get("segmental"):
+                col = {int(v): hex_rgb(cat[i % len(cat)]) for i, v in enumerate(labels["segmental"])}
+                schemes["segmental"] = ("airway_segmental.nii.gz", lambda v, c=col: c.get(v, (150, 150, 150)))
+            if "airway_branches.nii.gz" in src_imgs and labels.get("branches"):
+                col = {int(v): hex_rgb(cat[i % len(cat)]) for i, v in enumerate(labels["branches"])}
+                schemes["branches"] = ("airway_branches.nii.gz", lambda v, c=col: c.get(v, (150, 150, 150)))
+            for key, (src, colour_of) in schemes.items():
+                arr = sitk.GetArrayFromImage(src_imgs[src])
+                rgba = vertex_colours(vzyx, arr, colour_of)
+                fn = f"mesh_airway_{key}.mz3"
+                write_mz3(os.path.join(res, fn), xyz, faces, rgba)
+                meshes.append({"file": fn, "kind": "coloured", "overlay": key, "faces": int(len(faces))})
     if "airway_lobar.nii.gz" in src_imgs:
         img = src_imgs["airway_lobar.nii.gz"]
         lob = sitk.GetArrayFromImage(img)
@@ -358,7 +409,7 @@ def main():
             if m is None:
                 continue
             fn = f"mesh_lobe_{int(v)}.mz3"
-            write_mz3(os.path.join(res, fn), *m)
+            write_mz3(os.path.join(res, fn), m[0], m[1])
             meshes.append({"file": fn, "kind": "lobe", "label": int(v),
                            "name": labels.get("lobar", {}).get(str(int(v)), str(int(v))),
                            "faces": int(len(m[1]))})
