@@ -11,7 +11,7 @@ const AirwayApp = (() => {
   let NORM = null, AGE = null;
   const loadNorm = async () => {
     if (NORM) return NORM;
-    try { NORM = await (await fetch("/static/normative.json?v=9")).json(); } catch (_) { NORM = { metrics: {}, per_generation: {} }; }
+    try { NORM = await (await fetch("/static/normative.json?v=10")).json(); } catch (_) { NORM = { metrics: {}, per_generation: {} }; }
     return NORM;
   };
   const bandOf = (age) => {
@@ -338,6 +338,7 @@ const AirwayApp = (() => {
       layout = v;
       if (v === "grid") { nv.opts.multiplanarShowRender = 1; nv.setSliceType(3); }
       else nv.setSliceType(Number(v));
+      planesMode = null;                     // re-establish the render state, whatever happened meanwhile
       $("layouts").querySelectorAll("button").forEach(x => x.classList.toggle("on", x.dataset.layout === v));
       $("ck-sl3d").parentElement.style.opacity = v === "4" ? 1 : 0.5;
       applyVisibility();
@@ -392,13 +393,18 @@ const AirwayApp = (() => {
       el.hidden = false; el.textContent = text;
     };
     const loadCT = (name) => NVImage.loadFromUrl({ url: f(name), name, colormap: "gray", opacity: 1 });
-    const useCT = (img) => {
+    const useCT = async (img) => {
       const old = ct;
       nv.addVolume(img);
       if (nv.volumes[0] !== img && typeof nv.setVolume === "function") nv.setVolume(img, 0);
       if (old && nv.volumes.includes(old)) nv.removeVolume(old);
       ct = img;
       setWindow(-1000, 300);
+      // adding or removing a volume resets NiiVue's render shader; the 3D
+      // mode's "transparent CT + surface" state has to be set up again
+      planesMode = null;
+      await applyVisibility();
+      showMeshes();
     };
 
     // 1. the surface, visible on its own in the 3D pane
@@ -421,7 +427,7 @@ const AirwayApp = (() => {
     try { busy("Loading a preview of the CT…"); say("loading a preview of the CT…"); low = await loadCT("image_view_lowres.nii.gz"); }
     catch (_) { low = null; }
     if (low) {
-      useCT(low);
+      await useCT(low);
       setLayout(layout);
       await applyVisibility();
       await setOverlay("airway");
@@ -433,7 +439,7 @@ const AirwayApp = (() => {
       busy(low ? "Loading the full-resolution CT in the background…" : "Loading the CT…");
       say("loading the full-resolution CT…");
       const full = await loadCT("image_view.nii.gz");
-      useCT(full);
+      await useCT(full);
       if (!low) { setLayout(layout); await applyVisibility(); await setOverlay("airway"); if (haveMesh) legend(overlayKey); }
       else await applyVisibility();
     } catch (e) {
