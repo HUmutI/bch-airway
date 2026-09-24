@@ -10,14 +10,14 @@ later, by pointing JOBS_DIR somewhere else.
 import base64, json, os, re, secrets, sys
 from datetime import datetime, timezone
 
-from fastapi import FastAPI, File, HTTPException, UploadFile, Request
+from fastapi import FastAPI, File, Form, HTTPException, UploadFile, Request
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, PlainTextResponse, Response
 from fastapi.staticfiles import StaticFiles
 from starlette.concurrency import run_in_threadpool
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import config as C  # noqa: E402
-from api.cloud import before_read, wake_worker  # noqa: E402
+from api.cloud import after_write, before_read, wake_worker  # noqa: E402
 
 WEB = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "web")
 app = FastAPI(title="Airway segmentation and branch labelling", docs_url=None, redoc_url=None)
@@ -71,8 +71,26 @@ def job_page(job_id: str):
     return open(os.path.join(WEB, "job.html")).read()
 
 
+QUEUED_MSG = ("Starting a GPU for this scan, usually one to three minutes"
+              if C.BACKEND == "modal" else "Waiting for the worker")
+
+
+def parse_age(age):
+    """Optional age in years, 0 to 18, or None. Anything else is a 400."""
+    if age is None or str(age).strip() == "":
+        return None
+    try:
+        v = float(str(age).replace(",", "."))
+    except ValueError:
+        raise HTTPException(400, "age must be a number of years")
+    if not (0 <= v <= 18):
+        raise HTTPException(400, "age must be between 0 and 18 years")
+    return round(v, 2)
+
+
 @app.post("/api/jobs")
-async def create_job(request: Request, file: UploadFile = File(...)):
+async def create_job(request: Request, file: UploadFile = File(...), age_years: str = Form(None)):
+    age = parse_age(age_years)
     name = os.path.basename(file.filename or "")
     if not (name.endswith(".nii.gz") or name.endswith(".nii")):
         raise HTTPException(400, "upload a NIfTI file (.nii or .nii.gz)")
@@ -98,7 +116,8 @@ async def create_job(request: Request, file: UploadFile = File(...)):
     status = {"id": job_id, "state": "queued", "filename": name, "size_bytes": size,
               "created": datetime.now(timezone.utc).isoformat(timespec="seconds"),
               "client": request.client.host if request.client else None,
-              "progress": 0.0, "message": "Waiting for the worker", "error": None}
+              "age_years": age,
+              "progress": 0.0, "message": QUEUED_MSG, "error": None}
     json.dump(status, open(os.path.join(d, "status.json"), "w"), indent=1)
     await run_in_threadpool(wake_worker, job_id)      # may block on the volume commit
     return {"id": job_id}
@@ -126,11 +145,31 @@ def retry_job(job_id: str):
         except FileNotFoundError: pass
     for k in ("stages", "results", "results_ready", "morphometry_error", "started", "ended"):
         s.pop(k, None)
-    s.update(state="queued", progress=0.0, error=None, message="Waiting for the worker",
+    s.update(state="queued", progress=0.0, error=None, message=QUEUED_MSG,
              retried=s.get("retried", 0) + 1)
     json.dump(s, open(os.path.join(d, "status.json"), "w"), indent=1)
     wake_worker(job_id)
     return {"id": job_id, "state": "queued"}
+
+
+@app.post("/api/jobs/{job_id}/meta")
+async def set_meta(job_id: str, request: Request):
+    """Patient age for the percentiles, settable after the upload. Nothing that
+    identifies a person is accepted here; the page only ever asks for age."""
+    d = job_dir(job_id)
+    body = await request.json()
+    age = parse_age(body.get("age_years"))
+    p = os.path.join(d, "status.json")
+    s = json.load(open(p))
+    s["age_years"] = age
+    json.dump(s, open(p, "w"), indent=1)
+    await run_in_threadpool(after_write)
+    return {"id": job_id, "age_years": age}
+
+
+@app.get("/history", response_class=HTMLResponse)
+def history_page():
+    return open(os.path.join(WEB, "history.html")).read()
 
 
 @app.get("/api/jobs/{job_id}/log", response_class=PlainTextResponse)
@@ -170,7 +209,8 @@ def list_jobs(limit: int = 30):
         for d in os.listdir(C.JOBS_DIR):
             try:
                 s = json.load(open(os.path.join(C.JOBS_DIR, d, "status.json")))
-                rows.append({k: s.get(k) for k in ("id", "state", "filename", "created", "progress")})
+                rows.append({k: s.get(k) for k in ("id", "state", "filename", "created", "progress",
+                                                   "age_years", "message", "ended")})
             except Exception:
                 pass
     rows.sort(key=lambda r: r.get("created") or "", reverse=True)

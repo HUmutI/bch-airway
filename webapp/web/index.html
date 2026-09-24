@@ -4,13 +4,13 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Airway segmentation and branch labelling</title>
-<link rel="stylesheet" href="/static/app.css?v=7">
+<link rel="stylesheet" href="/static/app.css?v=8">
 </head>
 <body>
 <div class="wrap">
   <header class="top">
     <h1>Airway segmentation and branch labelling</h1>
-    <span class="sub">Pediatric chest CT · research prototype</span>
+    <span class="sub">Pediatric chest CT · research prototype · <a href="/history">Previous uploads</a></span>
   </header>
 
   <div class="banner">
@@ -23,7 +23,8 @@
     <h2>Upload a chest CT</h2>
     <p>One NIfTI volume (<code>.nii</code> or <code>.nii.gz</code>) in Hounsfield units. The
       pipeline segments the airway with three models, fuses them, and names every branch by
-      lobe and segment. A typical scan takes about six minutes on the current GPU.</p>
+      lobe and segment. A typical scan takes about ten minutes; a GPU is started for it
+      when you upload.</p>
 
     <div class="drop" id="drop">
       <div>Drop a file here, or click to choose</div>
@@ -31,6 +32,11 @@
       <input type="file" id="file" accept=".nii,.nii.gz,.gz" hidden>
     </div>
 
+    <div class="row">
+      <label class="age">Patient age <input type="number" id="age" min="0" max="18" step="0.1" placeholder="years">
+        <span class="hint">optional; only used to report measurements as percentiles for age against a
+          90-scan normative pediatric cohort</span></label>
+    </div>
     <div class="row">
       <label class="ack"><input type="checkbox" id="ack">
         I understand this tool is for research only and is not approved for clinical use.</label>
@@ -46,13 +52,15 @@
     <h2>What you get back</h2>
     <p>The fused airway mask, the lobar and segmental label maps, the branch instances and
       the centreline, all as NIfTI in the orientation of the scan you uploaded, plus an
-      in-browser 3D view. Files are kept on the server only as long as needed to serve them.</p>
+      in-browser 3D view, per-branch morphometry with percentiles for age, sanity checks on the
+      result, and a bundle that opens in ITK-SNAP for correction. Files are kept on the server
+      only as long as needed to serve them.</p>
   </div>
 
   <footer>Method: union of AirMorph, MEDPSeg and TfeNet with seeded component selection, then
     a graph transformer for branch naming. Research prototype.</footer>
 </div>
-<script src="/static/app.js?v=7"></script>
+<script src="/static/app.js?v=8"></script>
 <script>AirwayApp.upload();</script>
 </body>
 </html>

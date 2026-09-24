@@ -40,9 +40,15 @@ def before_read():
             print(f"cloud: volume reload failed: {exc}", flush=True)
 
 
+def after_write():
+    """Make a write to the jobs directory visible to the other side."""
+    if C.BACKEND == "modal":
+        _volume().commit()
+
+
 def wake_worker(job_id=None):
     if C.BACKEND == "modal":
-        _volume().commit()                       # the upload and status.json
+        after_write()                            # the upload and status.json
         import modal
         modal.Function.from_name(C.MODAL_APP, "run_job").spawn(job_id)
         print(f"cloud: spawned run_job({job_id})", flush=True)

@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Previous uploads · Airway segmentation</title>
+<link rel="stylesheet" href="/static/app.css?v=8">
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <h1>Previous uploads</h1>
+    <span class="sub"><a href="/">New upload</a></span>
+  </header>
+  <div class="banner"><strong>Research use only.</strong> Results are kept only as long as needed to serve them.</div>
+  <div class="card">
+    <p id="hmsg">Loading…</p>
+    <div class="mwrap" id="hist"></div>
+  </div>
+</div>
+<script src="/static/app.js?v=8"></script>
+<script>AirwayApp.history();</script>
+</body>
+</html>

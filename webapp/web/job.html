@@ -4,13 +4,13 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Job · Airway segmentation</title>
-<link rel="stylesheet" href="/static/app.css?v=7">
+<link rel="stylesheet" href="/static/app.css?v=8">
 </head>
 <body>
 <div class="wrap wide">
   <header class="top">
     <h1><a href="/" style="color:inherit;text-decoration:none">Airway segmentation and branch labelling</a></h1>
-    <span class="sub"><span id="jobid"></span> · <a href="/">New upload</a></span>
+    <span class="sub"><span id="jobid"></span> · <button class="link" id="copy" title="Copy this page's address; it is the only way back to this result">Copy link</button> · <a href="/history">Previous uploads</a> · <a href="/">New upload</a></span>
   </header>
 
   <div class="banner">
@@ -33,8 +33,15 @@
     </div>
   </div>
 
+  <div id="qc" hidden></div>
+
   <div class="card" id="results" hidden>
     <h2>Segmentation</h2>
+    <div class="row agerow" id="agerow">
+      <label class="age">Patient age <input type="number" id="age" min="0" max="18" step="0.1" placeholder="years"> y</label>
+      <button class="ghost" id="agesave">Save</button>
+      <span class="hint" id="agehint">Percentiles are against 90 healthy children, 10 per two-year band, one scan per patient.</span>
+    </div>
     <div class="stats" id="stats"></div>
     <div class="toolbar">
       <span class="group" id="layouts">
@@ -104,7 +111,7 @@
   window.Niivue = Niivue; window.NVImage = NVImage;
   window.dispatchEvent(new Event("niivue-ready"));
 </script>
-<script src="/static/app.js?v=7"></script>
+<script src="/static/app.js?v=8"></script>
 <script>AirwayApp.job();</script>
 </body>
 </html>

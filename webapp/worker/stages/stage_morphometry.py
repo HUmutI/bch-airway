@@ -277,6 +277,23 @@ def main():
         central = {"status": "not available", "reason": str(e)[:300]}
         print(f"central airways skipped: {e}", flush=True)
     out["central"] = central
+
+    # ---- sanity flags for the reader (the package stage adds its own) -------
+    qc = []
+    if central.get("status") != "ok":
+        qc.append({"code": "central_airways_unresolved", "level": "warn",
+                   "text": "Trachea and main bronchi could not be identified from the tree, so the "
+                           "central-airway measurements are missing. The labelling near the carina is suspect."})
+    if out["max_generation"] is not None and out["max_generation"] < 8:
+        qc.append({"code": "shallow_tree", "level": "warn",
+                   "text": f"The deepest branch is generation {out['max_generation']}; the normative cohort "
+                           "reaches 12 to 13. Peripheral airways were probably not segmented."})
+    broken = sum(1 for r in rows if "disconnected-centerline" in str(r.get("geometry_qc_flags", "")))
+    if rows and broken > 0.1 * len(rows):
+        qc.append({"code": "fragmented_centrelines", "level": "info",
+                   "text": f"{broken} of {len(rows)} branches have a centreline in more than one piece; "
+                           "their lengths and tortuosity are less reliable."})
+    out["qc"] = qc
     out["seconds"] = round(time.time() - t0, 1)
 
     json.dump(clean(out), open(res / "morphometry.json", "w"), indent=1)

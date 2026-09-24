@@ -4,6 +4,44 @@ const AirwayApp = (() => {
   const hex = (h) => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16));
   const esc = (s) => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 
+  // ---------------------------------------------------- percentiles for age
+  // web/normative.json holds, per metric and two-year age band, the percentile
+  // grid of the 90-scan normative cohort (built by tools/build_normative.py).
+  // A measurement becomes a percentile by linear interpolation on that grid.
+  let NORM = null, AGE = null;
+  const loadNorm = async () => {
+    if (NORM) return NORM;
+    try { NORM = await (await fetch("/static/normative.json?v=8")).json(); } catch (_) { NORM = { metrics: {}, per_generation: {} }; }
+    return NORM;
+  };
+  const bandOf = (age) => {
+    if (age == null || !(age >= 0)) return null;
+    const lo = Math.min(16, Math.floor(age / 2) * 2);
+    return `${lo}-${lo + 2}`;
+  };
+  const percentile = (key, value, gen) => {
+    if (!NORM || AGE == null || value == null || Number.isNaN(Number(value))) return null;
+    const band = bandOf(AGE);
+    const g = gen != null ? ((NORM.per_generation[key] || {})[String(gen)] || {})[band]
+                          : (NORM.metrics[key] || {})[band];
+    if (!g) return null;
+    const v = Number(value), P = g.p, V = g.v, last = V.length - 1;
+    let p, tag = "";
+    if (v <= V[0]) { p = P[0]; tag = "<"; }
+    else if (v >= V[last]) { p = P[last]; tag = ">"; }
+    else {
+      let i = 0; while (i < last && v > V[i + 1]) i++;
+      p = P[i] + (P[i + 1] - P[i]) * (v - V[i]) / (V[i + 1] - V[i]);
+    }
+    return { p: Math.round(p), tag, n: g.n, ages: g.ages, extreme: p < 5 || p > 95 };
+  };
+  const pctBadge = (key, value, gen) => {
+    if (AGE == null) return "";
+    const r = percentile(key, value, gen);
+    if (!r) return `<span class="pct none" title="no reference for this age band">–</span>`;
+    return `<span class="pct${r.extreme ? " extreme" : ""}" title="percentile for age among ${r.n} healthy children aged ${r.ages} years">${r.tag}P${r.p}</span>`;
+  };
+
   // ------------------------------------------------------------- upload page
   function upload() {
     const drop = $("drop"), input = $("file"), go = $("go"), ack = $("ack");
@@ -26,6 +64,7 @@ const AirwayApp = (() => {
     go.onclick = async () => {
       go.disabled = true; $("err").textContent = "";
       const fd = new FormData(); fd.append("file", file, file.name);
+      if ($("age").value !== "") fd.append("age_years", $("age").value);
       const xhr = new XMLHttpRequest();
       xhr.open("POST", "/api/jobs");
       xhr.upload.onprogress = (e) => {
@@ -45,8 +84,35 @@ const AirwayApp = (() => {
   function job() {
     const id = location.pathname.split("/").pop();
     $("jobid").textContent = `job ${id}`;
-    let shown = false, morphShown = false;
+    let shown = false, morphShown = false, lastStatus = null;
     const fmt = (s) => s < 60 ? `${Math.round(s)}s` : `${Math.floor(s / 60)}m ${Math.round(s % 60)}s`;
+    $("copy").onclick = async () => {
+      try { await navigator.clipboard.writeText(location.href); $("copy").textContent = "Link copied"; }
+      catch (_) { prompt("Copy this address:", location.href); }
+      setTimeout(() => { $("copy").textContent = "Copy link"; }, 2000);
+    };
+    // patient age: from the upload, editable here; percentiles re-render on save
+    $("agesave").onclick = async () => {
+      const v = $("age").value;
+      const r = await fetch(`/api/jobs/${id}/meta`, { method: "POST", headers: { "Content-Type": "application/json" },
+                                                     body: JSON.stringify({ age_years: v === "" ? null : Number(v) }) });
+      if (!r.ok) { $("agehint").textContent = "Age must be between 0 and 18 years."; return; }
+      AGE = v === "" ? null : Number(v);
+      $("agehint").textContent = AGE == null ? "No age given, so no percentiles." : `Percentiles for age ${AGE} y, against 90 healthy children (10 per two-year band).`;
+      if (lastStatus && lastStatus.results_ready) renderStats(lastStatus.results || {});
+      if (morphShown) showMorphometry(id);
+    };
+    const renderQC = (s, morph) => {
+      const flags = [...(((s.results || {}).qc) || []), ...((morph && morph.qc) || [])];
+      const box = $("qc");
+      if (!s.results_ready) { box.hidden = true; return; }
+      box.hidden = false;
+      if (!flags.length) { box.className = "qc clean"; box.innerHTML = "<h3>Checks passed</h3>The airway reaches the lung apex, every lobe has branches, the tree has a normal size and depth, and no member mask had to be trimmed."; return; }
+      const worst = flags.some(f => f.level === "warn") ? "warn" : "info";
+      box.className = `qc ${worst}`;
+      box.innerHTML = `<h3>${worst === "warn" ? "Check these before trusting the result" : "Notes on this result"}</h3><ul>` +
+        flags.map(f => `<li class="${f.level}">${esc(f.text)}</li>`).join("") + "</ul>";
+    };
 
     async function tick() {
       let s;
@@ -70,11 +136,19 @@ const AirwayApp = (() => {
 
       // The viewer opens as soon as the segmentation is packaged. Morphometry
       // is still running behind it and fills its own card when it is done.
-      if (s.results_ready && !shown) { shown = true; showResults(id, s.results || {}); }
+      lastStatus = s;
+      if (s.age_years != null && AGE == null && !shown) { AGE = s.age_years; $("age").value = s.age_years; }
+      if (s.results_ready && !shown) {
+        shown = true;
+        await loadNorm();
+        $("agehint").textContent = AGE == null ? "Enter the patient's age to see every measurement as a percentile for age." : `Percentiles for age ${AGE} y, against 90 healthy children (10 per two-year band).`;
+        showResults(id, s.results || {});
+      }
+      if (shown) renderQC(s, window._morph);
       const mst = (s.stages || []).find(x => x.name === "morphometry");
       if (shown && mst && !morphShown) {
         $("morph").hidden = false;
-        if (mst.state === "done") { morphShown = true; showMorphometry(id); }
+        if (mst.state === "done") { morphShown = true; showMorphometry(id).then(() => renderQC(s, window._morph)); }
         else if (mst.state === "failed") {
           morphShown = true;
           $("morph-msg").textContent = "Measurement failed: " + (s.morphometry_error || "see log");
@@ -96,18 +170,23 @@ const AirwayApp = (() => {
   }
 
   // --------------------------------------------------------------- results
+  function renderStats(r) {
+    const stats = [];
+    if (r.airway_volume_ml != null) stats.push([`${r.airway_volume_ml} mL`, "airway lumen volume", pctBadge("airway_lumen_volume_ml", r.airway_volume_ml)]);
+    if (r.branches != null) stats.push([r.branches, "branches named", pctBadge("branch_count", r.branches)]);
+    if (r.lobes) stats.push([r.lobes.filter(l => l.name !== "trachea").length, "lobes reached", ""]);
+    if (r.view_spacing_mm) stats.push([`${r.view_spacing_mm} mm`, "display resolution", ""]);
+    if (r.source_orientation) stats.push([r.source_orientation, "output orientation", ""]);
+    $("stats").innerHTML = stats.map(([b, s, p]) => `<div class="stat"><b>${b}</b><span>${s}</span>${p}</div>`).join("");
+  }
+
   async function showResults(id, r) {
     $("results").hidden = false;
     const f = (n) => `/api/jobs/${id}/files/${n}`;
-    const stats = [];
-    if (r.airway_volume_ml != null) stats.push([`${r.airway_volume_ml} mL`, "airway lumen volume"]);
-    if (r.branches != null) stats.push([r.branches, "branches named"]);
-    if (r.lobes) stats.push([r.lobes.filter(l => l.name !== "trachea").length, "lobes reached"]);
-    if (r.view_spacing_mm) stats.push([`${r.view_spacing_mm} mm`, "display resolution"]);
-    if (r.source_orientation) stats.push([r.source_orientation, "output orientation"]);
-    $("stats").innerHTML = stats.map(([b, s]) => `<div class="stat"><b>${b}</b><span>${s}</span></div>`).join("");
+    renderStats(r);
     const dl = [
       ["airway_results.zip", "Everything (zip)", "zip"],
+      ["itksnap_bundle.zip", "ITK-SNAP bundle (labels + label descriptions + how-to)", "zip"],
       ["airway_mask.nii.gz", "Airway mask"], ["airway_lobar.nii.gz", "Lobar labels"],
       ["airway_segmental.nii.gz", "Segmental labels"], ["airway_branches.nii.gz", "Branch instances"],
       ["airway_centreline.nii.gz", "Centreline"], ["mesh_airway.mz3", "Airway surface (MZ3)"],
@@ -338,41 +417,47 @@ const AirwayApp = (() => {
     catch (_) { $("morph-msg").textContent = "Measurements are not available for this scan."; return; }
     const c = m.central || {}, x = c.cross_section || {};
     const ok = c.status === "ok", xok = ok && x.trachea_mean_diameter_mm != null;
+    window._morph = m;
     $("morph-msg").textContent = "";
+    const P = (key, v, gen) => pctBadge(key, v, gen);
 
     const stats = [
-      [m.branch_count, "branches"],
-      [`${num(m.total_centreline_length_mm, 0)} mm`, "total centreline length"],
-      [m.max_generation, "deepest generation"],
-      [m.airway_lumen_volume_ml != null ? `${num(m.airway_lumen_volume_ml)} mL` : "–", "lumen volume"],
+      [m.branch_count, "branches", P("branch_count", m.branch_count)],
+      [`${num(m.total_centreline_length_mm, 0)} mm`, "total centreline length", P("total_centreline_length_mm", m.total_centreline_length_mm)],
+      [m.max_generation, "deepest generation", P("max_generation", m.max_generation)],
+      [m.airway_lumen_volume_ml != null ? `${num(m.airway_lumen_volume_ml)} mL` : "–", "lumen volume", P("airway_lumen_volume_ml", m.airway_lumen_volume_ml)],
       [xok ? `${num(x.trachea_length_intrathoracic_mm)} mm` : ok ? `${num(c.trachea.length_mm)} mm` : "–",
-       xok ? "intrathoracic tracheal length" : "tracheal length"],
+       xok ? "intrathoracic tracheal length" : "tracheal length", xok ? P("trachea_length_intrathoracic_mm", x.trachea_length_intrathoracic_mm) : ""],
       [xok ? `${num(x.trachea_mean_diameter_mm)} mm` : ok ? `${num(c.trachea.diameter_edt_mean_mm)} mm` : "–",
-       xok ? "tracheal diameter (cross section)" : "tracheal diameter (inscribed)"],
-      [xok && x.airway_to_lung_volume_percent != null ? `${num(x.airway_to_lung_volume_percent, 2)} %` : "–", "airway / lung volume"],
-      [m.skeleton_fractal_dimension != null ? num(m.skeleton_fractal_dimension, 2) : "–", "skeleton fractal dimension"],
+       xok ? "tracheal diameter (cross section)" : "tracheal diameter (inscribed)", xok ? P("trachea_mean_diameter_mm", x.trachea_mean_diameter_mm) : ""],
+      [xok && x.airway_to_lung_volume_percent != null ? `${num(x.airway_to_lung_volume_percent, 2)} %` : "–", "airway / lung volume", xok ? P("airway_to_lung_volume_percent", x.airway_to_lung_volume_percent) : ""],
+      [m.skeleton_fractal_dimension != null ? num(m.skeleton_fractal_dimension, 2) : "–", "skeleton fractal dimension", P("skeleton_fractal_dimension", m.skeleton_fractal_dimension)],
     ];
-    let html = `<div class="stats">${stats.map(([b, s]) => `<div class="stat"><b>${b}</b><span>${s}</span></div>`).join("")}</div>`;
+    let html = `<div class="stats">${stats.map(([b, s, p]) => `<div class="stat"><b>${b}</b><span>${s}</span>${p}</div>`).join("")}</div>`;
+    if (AGE == null) html += `<p class="mnote">Enter the patient's age above to see each value as a percentile for age.</p>`;
     html += `<div class="mgrid">`;
 
     // central airways
     if (ok) {
-      const row = (name, b, dx, lx) => [name, num(lx != null ? lx : b.length_mm), num(b.diameter_edt_mean_mm),
-        dx != null ? num(dx) : "–", b.angle_deg != null ? num(b.angle_deg, 0) : "–"];
-      let rows = [row("Trachea", c.trachea, x.trachea_mean_diameter_mm, x.trachea_length_intrathoracic_mm),
-                  row("Right main bronchus", c.rmb, x.rmb_mean_diameter_mm, x.rmb_length_mm),
-                  row("Left main bronchus", c.lmb, x.lmb_mean_diameter_mm, x.lmb_length_mm)];
+      const row = (name, b, dx, lx, kL, kD) => [name,
+        num(lx != null ? lx : b.length_mm) + (lx != null && kL ? P(kL, lx) : ""),
+        num(b.diameter_edt_mean_mm),
+        dx != null ? num(dx) + (kD ? P(kD, dx) : "") : "–",
+        b.angle_deg != null ? num(b.angle_deg, 0) : "–"];
+      let rows = [row("Trachea", c.trachea, x.trachea_mean_diameter_mm, x.trachea_length_intrathoracic_mm, "trachea_length_intrathoracic_mm", "trachea_mean_diameter_mm"),
+                  row("Right main bronchus", c.rmb, x.rmb_mean_diameter_mm, x.rmb_length_mm, "rmb_length_mm", "rmb_mean_diameter_mm"),
+                  row("Left main bronchus", c.lmb, x.lmb_mean_diameter_mm, x.lmb_length_mm, "lmb_length_mm", "lmb_mean_diameter_mm")];
       html += `<div><h3>Central airways</h3>${table(["", "Length mm", "Ø inscribed mm", "Ø cross section mm", "Angle °"], rows)}`;
       if (xok) {
         const ratios = [
-          ["Tracheal short / long axis", `${num(x.trachea_short_axis_mm)} / ${num(x.trachea_long_axis_mm)} mm`],
-          ["Tracheal eccentricity (short / long)", num(x.trachea_eccentricity, 2)],
-          ["Tracheal taper (distal / proximal Ø)", num(x.trachea_taper_distal_over_proximal, 2)],
-          ["Tracheal length / diameter", num(x.trachea_length_over_diameter, 1)],
-          ["Daughter / parent Ø at carina", num(x.daughter_over_parent_diameter, 2)],
-          ["Right-left asymmetry (R−L)/(R+L)", num(x.right_left_asymmetry, 2)],
+          ["Tracheal short / long axis", `${num(x.trachea_short_axis_mm)}${P("trachea_short_axis_mm", x.trachea_short_axis_mm)} / ${num(x.trachea_long_axis_mm)}${P("trachea_long_axis_mm", x.trachea_long_axis_mm)} mm`],
+          ["Tracheal eccentricity (short / long)", num(x.trachea_eccentricity, 2) + P("trachea_eccentricity", x.trachea_eccentricity)],
+          ["Tracheal taper (distal / proximal Ø)", num(x.trachea_taper_distal_over_proximal, 2) + P("trachea_taper_distal_over_proximal", x.trachea_taper_distal_over_proximal)],
+          ["Tracheal length / diameter", num(x.trachea_length_over_diameter, 1) + P("trachea_length_over_diameter", x.trachea_length_over_diameter)],
+          ["Daughter / parent Ø at carina", num(x.daughter_over_parent_diameter, 2) + P("daughter_over_parent_diameter", x.daughter_over_parent_diameter)],
+          ["Right-left asymmetry (R−L)/(R+L)", num(x.right_left_asymmetry, 2) + P("right_left_asymmetry", x.right_left_asymmetry)],
           ["Interbronchial angle (proxy, sum of local angles)", c.interbronchial_angle_proxy_deg != null ? `${num(c.interbronchial_angle_proxy_deg, 0)} °` : "–"],
-          ["Segmented lung volume", `${num(x.lung_volume_ml, 0)} mL`],
+          ["Segmented lung volume", `${num(x.lung_volume_ml, 0)} mL` + P("lung_volume_ml", x.lung_volume_ml)],
         ];
         html += table(["Ratio", ""], ratios);
       } else if (x.reason) {
@@ -384,7 +469,9 @@ const AirwayApp = (() => {
     }
     // per generation
     html += `<div><h3>Per generation</h3>${table(["Gen", "n", "Ø mean mm", "Length mean mm", "Length total mm", "Angle °"],
-      (m.per_generation || []).map(g => [g.generation, g.n, num(g.diameter_mean_mm), num(g.length_mean_mm),
+      (m.per_generation || []).map(g => [g.generation, g.n + P("n", g.n, g.generation),
+                                         num(g.diameter_mean_mm) + P("diameter_mean_mm", g.diameter_mean_mm, g.generation),
+                                         num(g.length_mean_mm) + P("length_mean_mm", g.length_mean_mm, g.generation),
                                          num(g.length_total_mm, 0), g.angle_mean_deg != null ? num(g.angle_mean_deg, 0) : "–"]))}</div>`;
     // per lobe
     html += `<div><h3>Per lobe</h3>${table(["Lobe", "n", "Deepest gen", "Length mm", "Volume mL", "Ø mean mm"],
@@ -444,5 +531,19 @@ const AirwayApp = (() => {
     $("gl").scrollIntoView({ behavior: "smooth", block: "center" });
   }
 
-  return { upload, job };
+  // ------------------------------------------------------------- history
+  async function history() {
+    let rows = [];
+    try { rows = await (await fetch("/api/jobs?limit=200", { cache: "no-store" })).json(); }
+    catch (_) { $("hmsg").textContent = "Could not load the list."; return; }
+    if (!rows.length) { $("hmsg").textContent = "No uploads yet."; return; }
+    $("hmsg").textContent = `${rows.length} upload${rows.length === 1 ? "" : "s"}. Results stay available while they are kept on the server.`;
+    const when = (iso) => iso ? new Date(iso).toLocaleString() : "";
+    $("hist").innerHTML = table(["Uploaded", "File", "Age", "State", "Progress", ""],
+      rows.map(r => [when(r.created), esc(r.filename || ""), r.age_years != null ? `${r.age_years} y` : "",
+                     esc(r.state || ""), r.state === "done" ? "100%" : `${Math.round((r.progress || 0) * 100)}%`,
+                     `<a href="/jobs/${r.id}">open</a>`]));
+  }
+
+  return { upload, job, history };
 })();

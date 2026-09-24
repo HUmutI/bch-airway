@@ -218,18 +218,32 @@ Next concrete steps, in order:
    the GPU quota arrives.
 4. Replace basic auth with institutional SSO when IT provides it.
 
-## Ideas not yet built (agreed as worthwhile, none started)
+## Built 2026-09-24 (was the "ideas" list)
 
-1. Age field at upload → measurements as percentiles against the 90-scan
-   normative cohort (`FINAL_AIRWAY_90_RESULTS_2026-09-16/cohort_90.csv` has
-   age_years; `or_all3_run/normal_airway_branch_morphometry.csv` has per-
-   generation rows).
-2. QC flags: lobe with no branches, trachea not reaching the top slice, tree
-   much shallower than the cohort median, member blob larger than the fused mask.
-3. "Compare members" toggle: raw AirMorph / MEDPSeg / TfeNet masks.
-4. Job history page (`GET /api/jobs` already exists).
-5. Morphometry speed: `measure_case` does one `np.argwhere` per branch over
-   the full volume; a single pass grouped by label would cut 180 s to ~20 s.
+- **QC flags.** `stage_package.qc_flags` (trachea below lung apex, airway at
+  the volume edge, lobe without branches, member mask >2x the fused one,
+  sparse tree, tiny volume) and `stage_morphometry` (central airways
+  unresolved, shallow tree, fragmented centrelines). Written to
+  `summary.json["qc"]` / `morphometry.json["qc"]`, shown as a banner on the
+  job page (`renderQC` in app.js). Levels: warn / info.
+- **Age -> percentiles.** Optional age at upload (`age_years` form field) or
+  later on the job page (`POST /api/jobs/{id}/meta`). `web/normative.json`
+  (built by `tools/build_normative.py` from the 90-scan cohort on izmir)
+  holds percentile grids per metric and two-year band, each over the band
+  and its neighbours (~30 scans); the browser interpolates
+  (`percentile()` in app.js). Badges on every stat, the central table, the
+  ratios and the per-generation table; <P5 / >P95 highlighted.
+- **History page** `/history` (GET /api/jobs), **Copy link** on the job
+  page, queued message says a GPU is starting when on Modal.
+- **ITK-SNAP bundle** `itksnap_bundle.zip` (labels, label descriptions,
+  README pointing at the 3D-editing fork), built by the package stage.
+
+## Ideas not yet built
+
+1. "Compare members" toggle in the viewer: raw AirMorph / MEDPSeg / TfeNet masks.
+2. Progressive viewer load: a coarse `image_view` first, full resolution behind it.
+3. Re-run the labelling on a corrected mask uploaded from ITK-SNAP.
+4. Percentiles with a proper age model (LMS) once the cohort is larger than 90.
 
 ## How to run locally (izmir)
 

@@ -145,6 +145,114 @@ def itksnap_labels(path, names, colours):
     open(path, "w").write("\n".join(lines) + "\n")
 
 
+def qc_flags(case, src_imgs, labels, stats):
+    """Sanity checks a reader should see before trusting the result. Each flag
+    is {code, level, text}; level is "warn" (look at it) or "info" (expected
+    behaviour worth knowing). Nothing here changes the output."""
+    flags = []
+    warn = lambda code, text: flags.append({"code": code, "level": "warn", "text": text})   # noqa: E731
+    info = lambda code, text: flags.append({"code": code, "level": "info", "text": text})   # noqa: E731
+
+    mask_img = src_imgs.get("airway_mask.nii.gz")
+    if mask_img is None:
+        return flags
+    mask = sitk.GetArrayFromImage(mask_img) > 0
+    D = np.asarray(mask_img.GetDirection()).reshape(3, 3)
+    # array axis that runs superior-inferior, and which way is superior
+    axis_zyx = int(np.argmax(np.abs(D[2, :])))            # column with the largest S component
+    arr_axis = 2 - axis_zyx                                # (x,y,z) -> (z,y,x) array order
+    up_positive = D[2, axis_zyx] > 0                       # index increases towards superior
+    sp = np.asarray(mask_img.GetSpacing())[::-1]
+
+    def extent(m):
+        idx = np.where(m.any(axis=tuple(i for i in range(3) if i != arr_axis)))[0]
+        return (idx.min(), idx.max()) if idx.size else None
+
+    # 1. the trachea should reach at least the lung apex
+    lobe_p = os.path.join(case, "lunglobe.nii.gz")
+    if os.path.exists(lobe_p):
+        lobe = to_source(sitk.ReadImage(lobe_p), stats["source_orientation"])
+        lung = sitk.GetArrayFromImage(lobe) > 0
+        ea, el = extent(mask), extent(lung)
+        if ea and el:
+            top_a = ea[1] if up_positive else ea[0]
+            top_l = el[1] if up_positive else el[0]
+            gap_mm = ((top_l - top_a) if up_positive else (top_a - top_l)) * sp[arr_axis]
+            if gap_mm > 5:
+                warn("trachea_below_apex", f"The airway ends {gap_mm:.0f} mm below the lung apex: the trachea "
+                     "may be truncated or the segmentation may have missed its upper part.")
+            n_slices = mask.shape[arr_axis]
+            edge = (n_slices - 1 - top_a) if up_positive else top_a
+            if edge <= 1:
+                info("airway_at_volume_edge", "The airway reaches the top slice of the volume, so the "
+                     "trachea is cut by the scan's field of view and its length is a lower bound.")
+
+    # 2. a lobe with nothing assigned to it
+    lob_names = labels.get("lobar", {})
+    present = {l["name"] for l in stats.get("lobes", [])}
+    missing = [n for v, n in lob_names.items() if n != "trachea" and n not in present]
+    if missing:
+        warn("lobe_without_branches", "No branch was assigned to: " + ", ".join(missing) +
+             ". Either that part of the tree was not segmented or the labelling is wrong there.")
+
+    # 3. a member whose raw mask dwarfs the fused airway: artefacts were removed
+    n_fused = int(mask.sum())
+    for f, name in (("airway_bin.nii.gz", "AirMorph"), ("medpseg_airway.nii.gz", "MEDPSeg"),
+                    ("tfenet_airway.nii.gz", "TfeNet")):
+        p = os.path.join(case, f)
+        if os.path.exists(p):
+            n = int((sitk.GetArrayFromImage(sitk.ReadImage(p)) > 0).sum())
+            if n_fused and n > 2 * n_fused:
+                info("member_artefacts_removed", f"{name}'s raw mask was {n / n_fused:.1f}x the fused airway; "
+                     "the excess (typically slabs or vessels) was dropped by the seeded component selection. "
+                     "Check the periphery on that side.")
+
+    # 4. a very small tree
+    nb = stats.get("branches") or 0
+    if nb and nb < 30:
+        warn("sparse_tree", f"Only {nb} branches were named; a pediatric chest CT usually yields well over 100. "
+             "The segmentation may be incomplete or the scan may be a partial field of view.")
+    if stats.get("airway_volume_ml") is not None and stats["airway_volume_ml"] < 2:
+        warn("tiny_airway_volume", f"Airway lumen volume is {stats['airway_volume_ml']} mL, below anything in "
+             "the normative cohort. Check that the scan is a chest CT in Hounsfield units.")
+    return flags
+
+
+def itksnap_bundle(res, labels):
+    """Zip for the correction step: segmentation volumes, ITK-SNAP label
+    descriptions and a README that says how to open them next to the
+    original CT, in ITK-SNAP or in the lab's 3D-editing fork."""
+    files = [f for f in ("airway_mask.nii.gz", "airway_lobar.nii.gz", "airway_segmental.nii.gz",
+                         "airway_branches.nii.gz", "itksnap_lobar_labels.txt", "itksnap_segmental_labels.txt",
+                         "labels.json") if os.path.exists(os.path.join(res, f))]
+    readme = """Airway segmentation for ITK-SNAP
+================================
+
+These volumes are on the grid of the CT you uploaded, so they open directly
+on top of it.
+
+1. File > Open Main Image: your original CT (the file you uploaded).
+2. Segmentation > Open Segmentation: airway_segmental.nii.gz (or
+   airway_lobar.nii.gz for lobes, airway_mask.nii.gz for the plain mask).
+3. Segmentation > Import Label Descriptions: itksnap_segmental_labels.txt
+   (or itksnap_lobar_labels.txt), so each label shows its name and colour.
+4. airway_branches.nii.gz holds one label per named branch; labels.json maps
+   the label value to the branch names.
+
+To correct the tree in the 3D view (surface brush, delete island, bridge,
+fill hole) use the lab's ITK-SNAP fork:
+https://github.com/quin-med-harvard-edu/itksnap-3d-edit
+
+Research use only. Not for clinical decisions.
+"""
+    zp = os.path.join(res, "itksnap_bundle.zip")
+    with zipfile.ZipFile(zp, "w", zipfile.ZIP_STORED) as z:
+        for f in files:
+            z.write(os.path.join(res, f), f)
+        z.writestr("README_ITKSNAP.txt", readme)
+    print(f"wrote itksnap_bundle.zip ({len(files)} files)", flush=True)
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--job-dir", required=True)
@@ -252,7 +360,11 @@ def main():
     stats["meshes"] = meshes
     print(f"wrote {len(meshes)} meshes", flush=True)
 
+    stats["qc"] = qc_flags(case, src_imgs, labels, stats)
+    print(f"qc: {[q['code'] for q in stats['qc']] or 'clean'}", flush=True)
+
     json.dump(stats, open(os.path.join(res, "summary.json"), "w"), indent=1)
+    itksnap_bundle(res, labels)
 
     zp = os.path.join(res, "airway_results.zip")
     with zipfile.ZipFile(zp, "w", zipfile.ZIP_STORED) as z:   # nii.gz is already compressed

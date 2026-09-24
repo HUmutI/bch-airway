@@ -123,3 +123,25 @@ table.m tr.link:hover td { background: #fbf7f3; }
 footer { color: var(--muted); font-size: 12px; margin-top: 30px; border-top: 1px solid var(--line); padding-top: 12px; }
 @media (max-width: 900px) { .viewer { flex-direction: column; height: auto; } .canvas-wrap { height: 480px; } .layers { width: auto; } }
 @media (max-width: 640px) { .canvas-wrap { height: 380px; } .wrap { padding: 20px 14px 40px; } }
+
+/* percentiles, QC, history (2026-09-24) */
+label.age { display: flex; align-items: center; gap: 8px; font-size: 14px; flex-wrap: wrap; }
+label.age input { width: 84px; padding: 6px 8px; border: 1px solid var(--line); border-radius: 6px; font-size: 14px; }
+.agerow { margin: 0 0 14px; }
+button.link { background: none; border: 0; padding: 0; color: var(--accent); cursor: pointer; font: inherit; font-size: 13px; }
+button.link:hover { text-decoration: underline; }
+.pct { display: inline-block; font-size: 11px; font-weight: 600; padding: 1px 6px; border-radius: 10px; margin-left: 6px;
+  background: #ece8e1; color: var(--muted); vertical-align: middle; white-space: nowrap; }
+.pct.extreme { background: var(--warn-bg); color: var(--warn-text); border: 1px solid var(--warn-line); }
+.pct.none { background: transparent; color: var(--muted); font-weight: 400; }
+.stat .pct { margin-left: 0; margin-top: 4px; }
+table.m td .pct { margin-left: 4px; }
+.qc { border-radius: 8px; padding: 12px 14px; margin-bottom: 18px; font-size: 14px; }
+.qc h3 { margin: 0 0 6px; font-size: 14px; font-weight: 600; }
+.qc ul { margin: 0; padding-left: 18px; }
+.qc li { margin: 3px 0; }
+.qc.warn { background: var(--warn-bg); color: var(--warn-text); border: 1px solid var(--warn-line); }
+.qc.info { background: #eef4ef; color: #1f4d33; border: 1px solid #bcd6c4; }
+.qc.clean { background: #eef4ef; color: #1f4d33; border: 1px solid #bcd6c4; }
+.qc li.info { opacity: .85; }
+table.m tr.link:hover td { background: #fbf7f3; cursor: pointer; }
