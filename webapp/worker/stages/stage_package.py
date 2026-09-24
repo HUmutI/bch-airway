@@ -332,6 +332,11 @@ def main():
           f"{[round(x, 3) for x in ct.GetSpacing()]})", flush=True)
     sitk.WriteImage(sitk.Cast(resample(ct, s, size, nearest=False), sitk.sitkInt16),
                     os.path.join(res, "image_view.nii.gz"), True)
+    # coarse first-paint copy, see config.VIEW_LOWRES_VOXELS
+    s2, size2 = view_grid(ct, C.VIEW_LOWRES_VOXELS)
+    stats["view_lowres_spacing_mm"] = s2
+    sitk.WriteImage(sitk.Cast(resample(ct, s2, size2, nearest=False), sitk.sitkInt16),
+                    os.path.join(res, "image_view_lowres.nii.gz"), True)
     for out, img in src_imgs.items():
         v = resample(img, s, size, nearest=True)
         sitk.WriteImage(v, os.path.join(res, out.replace(".nii.gz", "_view.nii.gz")), True)
@@ -369,7 +374,7 @@ def main():
     zp = os.path.join(res, "airway_results.zip")
     with zipfile.ZipFile(zp, "w", zipfile.ZIP_STORED) as z:   # nii.gz is already compressed
         for f in sorted(os.listdir(res)):
-            if f != "airway_results.zip" and not f.endswith("_view.nii.gz"):
+            if f != "airway_results.zip" and "_view" not in f:
                 z.write(os.path.join(res, f), f)
     print(f"packaged: {json.dumps({k: v for k, v in stats.items() if k != 'meshes'})}", flush=True)
 

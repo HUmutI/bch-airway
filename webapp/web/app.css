@@ -145,3 +145,6 @@ table.m td .pct { margin-left: 4px; }
 .qc.clean { background: #eef4ef; color: #1f4d33; border: 1px solid #bcd6c4; }
 .qc li.info { opacity: .85; }
 table.m tr.link:hover td { background: #fbf7f3; cursor: pointer; }
+.canvas-wrap .loading { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+  background: rgba(31, 29, 26, .85); color: #fff; font-size: 14px; padding: 10px 16px; border-radius: 6px;
+  pointer-events: none; white-space: nowrap; }

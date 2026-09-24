@@ -82,5 +82,8 @@ BASIC_AUTH_PASSWORD = os.environ.get("AIRWAY_BASIC_AUTH_PASSWORD", "")
 # The viewer keeps the CT on the GPU at 4 bytes per voxel. A display copy is
 # resampled so that it never exceeds this many voxels (60 M = 240 MB).
 VIEW_MAX_VOXELS = int(os.environ.get("AIRWAY_VIEW_MAX_VOXELS", str(60_000_000)))
+# A coarse copy of the CT (~1.5 mm, a few MB) that the viewer shows within
+# seconds while the full display copy (~60 MB) is still downloading.
+VIEW_LOWRES_VOXELS = int(os.environ.get("AIRWAY_VIEW_LOWRES_VOXELS", str(6_000_000)))
 
 MAX_UPLOAD_MB = int(os.environ.get("AIRWAY_MAX_UPLOAD_MB", "1500"))

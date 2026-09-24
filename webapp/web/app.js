@@ -11,7 +11,7 @@ const AirwayApp = (() => {
   let NORM = null, AGE = null;
   const loadNorm = async () => {
     if (NORM) return NORM;
-    try { NORM = await (await fetch("/static/normative.json?v=8")).json(); } catch (_) { NORM = { metrics: {}, per_generation: {} }; }
+    try { NORM = await (await fetch("/static/normative.json?v=9")).json(); } catch (_) { NORM = { metrics: {}, per_generation: {} }; }
     return NORM;
   };
   const bandOf = (age) => {
@@ -380,27 +380,68 @@ const AirwayApp = (() => {
       } catch (_) {}
     };
 
-    // ---- load, in order of what the user wants to see first --------------------------
-    try {
-      say("loading the CT…  (large scans take a moment)");
-      await nv.loadVolumes([{ url: f("image_view.nii.gz"), colormap: "gray", opacity: 1 }]);
-      ct = nv.volumes[0];
+    // ---- load, smallest first, so the airway is on screen within seconds ----
+    // Order: the airway surface (a few MB), a coarse CT (a few MB) with the
+    // airway labels on it, then the full-resolution CT (tens of MB) which
+    // replaces the coarse one in place. Over a slow link the old order (CT
+    // first) left the page looking empty for the whole download.
+    const busy = (text) => {
+      const el = $("loading");
+      if (!el) return;
+      if (!text) { el.hidden = true; return; }
+      el.hidden = false; el.textContent = text;
+    };
+    const loadCT = (name) => NVImage.loadFromUrl({ url: f(name), name, colormap: "gray", opacity: 1 });
+    const useCT = (img) => {
+      const old = ct;
+      nv.addVolume(img);
+      if (nv.volumes[0] !== img && typeof nv.setVolume === "function") nv.setVolume(img, 0);
+      if (old && nv.volumes.includes(old)) nv.removeVolume(old);
+      ct = img;
       setWindow(-1000, 300);
-    } catch (e) { fail("CT", e); return; }
-    await applyVisibility();                 // slice planes in the grid's 3D pane
-    await setOverlay("airway");
+    };
+
+    // 1. the surface, visible on its own in the 3D pane
+    const meshList = [{ url: f("mesh_airway.mz3"), name: meshName("airway"), rgba255: [...hex(L.airwayColour), 255], visible: true }];
+    for (const m of L.meshes.filter(m => m.kind === "lobe")) {
+      meshList.push({ url: f(m.file), name: meshName(`lobe_${m.label}`),
+                      rgba255: [...hex(L.lobColours[String(m.label)] || "#999999"), 255], visible: false });
+    }
+    let haveMesh = false;
     try {
-      if (overlayKey) say("loading the airway surface…");
-      const meshList = [{ url: f("mesh_airway.mz3"), name: meshName("airway"), rgba255: [...hex(L.airwayColour), 255], visible: true }];
-      for (const m of L.meshes.filter(m => m.kind === "lobe")) {
-        meshList.push({ url: f(m.file), name: meshName(`lobe_${m.label}`),
-                        rgba255: [...hex(L.lobColours[String(m.label)] || "#999999"), 255], visible: false });
-      }
+      busy("Loading the airway surface…"); say("loading the airway surface…");
       await nv.loadMeshes(meshList);
+      haveMesh = true;
       showMeshes();
-      if (overlayKey) legend(overlayKey);
-      say("Click a slice to read position and value. Left-drag rotates the 3D view.");
+      nv.setSliceType(4);                    // nothing but the surface yet: show it in 3D
     } catch (e) { fail("surfaces", e); }
+
+    // 2. a coarse CT quickly (older results do not have it), then the labels
+    let low = null;
+    try { busy("Loading a preview of the CT…"); say("loading a preview of the CT…"); low = await loadCT("image_view_lowres.nii.gz"); }
+    catch (_) { low = null; }
+    if (low) {
+      useCT(low);
+      setLayout(layout);
+      await applyVisibility();
+      await setOverlay("airway");
+      if (haveMesh) legend(overlayKey);
+    }
+
+    // 3. the full-resolution CT, swapped in underneath the labels
+    try {
+      busy(low ? "Loading the full-resolution CT in the background…" : "Loading the CT…");
+      say("loading the full-resolution CT…");
+      const full = await loadCT("image_view.nii.gz");
+      useCT(full);
+      if (!low) { setLayout(layout); await applyVisibility(); await setOverlay("airway"); if (haveMesh) legend(overlayKey); }
+      else await applyVisibility();
+    } catch (e) {
+      if (!low) { busy(null); fail("CT", e); return; }
+      console.warn("full-resolution CT not loaded, keeping the preview", e);
+    }
+    busy(null);
+    say("Click a slice to read position and value. Left-drag rotates the 3D view.");
     load("branches").then(img => { branchesImg = img; window._branchesImg = img; }).catch(() => {});
   }
 
