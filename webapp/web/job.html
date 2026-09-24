@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Job · Airway segmentation</title>
-<link rel="stylesheet" href="/static/app.css?v=15">
+<link rel="stylesheet" href="/static/app.css?v=16">
 </head>
 <body>
 <div class="wrap wide">
@@ -61,7 +61,6 @@
       <div class="canvas-wrap">
         <canvas id="gl"></canvas>
         <div class="loading" id="loading" hidden></div>
-        <div class="pick" id="pick" hidden></div>
         <div class="readout" id="readout">Click a slice to read position and value</div>
       </div>
       <aside class="layers">
@@ -117,7 +116,7 @@
   window.Niivue = Niivue; window.NVImage = NVImage; window.NVMesh = NVMesh;
   window.dispatchEvent(new Event("niivue-ready"));
 </script>
-<script src="/static/app.js?v=15"></script>
+<script src="/static/app.js?v=16"></script>
 <script>AirwayApp.job();</script>
 </body>
 </html>
