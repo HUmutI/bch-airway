@@ -56,12 +56,23 @@ dependencies, so every stage is a subprocess in its own interpreter.
 | medpseg | medpseg | yes | MEDPSeg CLI `--disable_lobe` → `medpseg_airway.nii.gz` | 3.5 min |
 | tfenet | tfenet | yes | TfeNet big+small, 128-cube stride 64, cropped to lung∪airway box + 24 vox | 4.3 min |
 | fuse | airmorph | no | `all_3_lcc/fuse_union3.py`: union, seeded 6-connected component → `union3_lcc.nii.gz` | 14 s |
-| label | airmorph | no (CPU path) | TEASAR skeleton + graph-transformer classifier → `case_parse`, `case_pred_lob/seg`, `case_anno.json` | 5.5 min |
+| label | airmorph | no (CPU path) | TEASAR skeleton + graph-transformer classifier → `case_parse`, `case_pred_lob/seg`, `case_anno.json`; runs on the airway+lung bounding box, outputs identical | 70 s (was 5.5 min) |
 | package | airmorph | no | rotate everything to the upload's orientation, display copies, meshes, ITK-SNAP label files, `summary.json`, zip | 25 s |
-| morphometry | airmorph | no | per-branch and central-airway measurements, non-fatal | 3.3 min (16 s for 7 branches) |
+| morphometry | airmorph | no | per-branch and central-airway measurements, non-fatal; one pass over the volume instead of one per branch | 36 s (was 3.3 min) |
 
 medpseg and tfenet run concurrently (`PARALLEL_MEMBERS`, 11+5 GB on a 24 GB
-card). Total to viewer ≈ 14 min; morphometry fills in afterwards.
+card). Total to viewer ≈ 9 min, done ≈ 10 min (2026-09-24; was 14 / 17).
+
+What was measured on 2026-09-24 before speeding it up, so nobody repeats it:
+AirMorph peaks at 15.9 GB and 55 % GPU utilisation; TfeNet 4.6 GB at 91 %,
+169 s alone, 257 s next to MEDPSeg. All three members at once would need
+~31 GB, so the member order cannot be improved on a 24 GB card, and TfeNet is
+GPU-bound, so overlapping its two networks would gain little. The whole gain
+was in the CPU tail: label 328 → 70 s (crop to the airway+lung box; the
+classifier's 239 full-volume comparisons became a lookup table), morphometry
+207 → 36 s (one `argwhere` and one `bincount` instead of one per branch,
+distance transform on the mask's box). Both verified identical to the
+previous outputs on sub-0053.
 
 `status.json` carries `state` (queued/claimed/running/done/failed),
 `progress`, `message`, `stages[]` with per-stage state and timestamps,

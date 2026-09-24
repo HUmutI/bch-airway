@@ -228,11 +228,31 @@ def measure_case(case_dir: Path) -> list[dict]:
 
     mask_img = sitk.ReadImage(str(case_dir / "union3_lcc.nii.gz"))
     mask = sitk.GetArrayFromImage(mask_img) > 0
-    skel_parse = sitk.GetArrayFromImage(sitk.ReadImage(str(products[0]))).astype(int)
-    airway_parse = sitk.GetArrayFromImage(sitk.ReadImage(str(products[1]))).astype(int)
+    skel_parse = sitk.GetArrayFromImage(sitk.ReadImage(str(products[0]))).astype(np.int32)
+    airway_parse = sitk.GetArrayFromImage(sitk.ReadImage(str(products[1]))).astype(np.int32)
     spacing_zyx = np.asarray(mask_img.GetSpacing())[::-1]
     voxel_volume = float(np.prod(mask_img.GetSpacing()))
-    distance = ndimage.distance_transform_edt(mask, sampling=spacing_zyx)
+
+    # The distance transform is only read at skeleton voxels, all inside the
+    # mask, and the nearest background voxel to an airway voxel is never
+    # outside the mask's bounding box padded by one voxel (that ring is all
+    # background). Computing it on that crop gives identical values in a
+    # fraction of the time on a 200 M-voxel scan.
+    box = ndimage.find_objects(mask.astype(np.uint8))[0]
+    box = tuple(slice(max(0, sl.start - 1), min(n, sl.stop + 1)) for sl, n in zip(box, mask.shape))
+    distance = np.zeros(mask.shape, dtype=np.float64)
+    distance[box] = ndimage.distance_transform_edt(mask[box], sampling=spacing_zyx)
+
+    # Every branch's skeleton voxels in one pass instead of one full-volume
+    # comparison per branch. A stable sort keeps the C-order that
+    # np.argwhere(skel_parse == id) would have produced.
+    all_coords = np.argwhere(skel_parse > 0)
+    all_labels = skel_parse[tuple(all_coords.T)]
+    order = np.argsort(all_labels, kind="stable")
+    all_coords, all_labels = all_coords[order], all_labels[order]
+    bounds = np.searchsorted(all_labels, np.arange(int(skel_parse.max()) + 2))
+    coords_of = lambda pid: all_coords[bounds[pid]:bounds[pid + 1]] if 0 <= pid <= int(skel_parse.max()) else all_coords[:0]
+    voxels_of = np.bincount(airway_parse.ravel(), minlength=int(airway_parse.max()) + 1)
 
     with products[5].open() as f:
         annotations = json.load(f)
@@ -248,7 +268,7 @@ def measure_case(case_dir: Path) -> list[dict]:
 
     geom = {}
     for row_idx, parse_id in enumerate(parse_ids):
-        coords = np.argwhere(skel_parse == parse_id)
+        coords = coords_of(parse_id)
         length, chord, endpoint0, endpoint1, components = centerline_geometry(
             coords, spacing_zyx)
         physical = coords.astype(float) * spacing_zyx
@@ -262,7 +282,7 @@ def measure_case(case_dir: Path) -> list[dict]:
         parent_parse_id = parse_ids[parent_idx] if parent_idx is not None else None
         length, chord, endpoint0, endpoint1, coords, physical, components = geom[row_idx]
         radius = distance[tuple(coords.T)] if len(coords) else np.array([])
-        branch_voxels = int(np.count_nonzero(airway_parse == parse_id))
+        branch_voxels = int(voxels_of[parse_id]) if parse_id < len(voxels_of) else 0
         rmin = float(radius.min()) if len(radius) else float("nan")
         rmean = float(radius.mean()) if len(radius) else float("nan")
         rmax = float(radius.max()) if len(radius) else float("nan")

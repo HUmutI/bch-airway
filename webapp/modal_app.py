@@ -21,7 +21,7 @@ import sys
 import modal
 
 APP_NAME = "airway"
-WORKER_IMAGE = os.environ.get("AIRWAY_WORKER_IMAGE", "ghcr.io/humuti/airway-worker:v1")
+WORKER_IMAGE = os.environ.get("AIRWAY_WORKER_IMAGE", "ghcr.io/humuti/airway-worker:v2")
 GPU = os.environ.get("AIRWAY_GPU", "A10G")          # 24 GB; L4 also works (arch 8.9 compiled)
 
 app = modal.App(APP_NAME)

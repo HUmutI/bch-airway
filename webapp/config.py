@@ -49,7 +49,7 @@ TFENET_CROP_MARGIN = 24                                # voxels, each side
 # progress bar. Wrong values make the bar lie, not the pipeline.
 STAGE_MINUTES = {
     "prepare": 0.15, "airmorph": 1.3, "medpseg": 2.0, "tfenet": 2.6,
-    "fuse": 0.3, "label": 1.6, "package": 0.6, "morphometry": 3.0,
+    "fuse": 0.3, "label": 1.2, "package": 0.6, "morphometry": 0.6,
 }
 # A stage still running after this long is killed and the job fails. The
 # slowest stage takes ~6 min on an A5000; a T4 with a big scan maybe 3x that.
