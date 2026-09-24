@@ -11,7 +11,7 @@ const AirwayApp = (() => {
   let NORM = null, AGE = null;
   const loadNorm = async () => {
     if (NORM) return NORM;
-    try { NORM = await (await fetch("/static/normative.json?v=12")).json(); } catch (_) { NORM = { metrics: {}, per_generation: {} }; }
+    try { NORM = await (await fetch("/static/normative.json?v=14")).json(); } catch (_) { NORM = { metrics: {}, per_generation: {} }; }
     return NORM;
   };
   const bandOf = (age) => {
@@ -312,9 +312,12 @@ const AirwayApp = (() => {
       for (const m of nv.meshes) {
         const base = meshBase(m);
         const vis = on && (want === "lobes" ? (base.startsWith("lobe_") && !!lobeOn[+base.split("_")[1]]) : base === want);
-        if (m.visible !== vis) nv.setMeshProperty(m.id, "visible", vis);
-        if (m.opacity !== op) nv.setMeshProperty(m.id, "opacity", op);
+        // set unconditionally: the cached flags can disagree with the GL state
+        // after meshes were added while the scene was being rebuilt
+        nv.setMeshProperty(m.id, "visible", vis);
+        nv.setMeshProperty(m.id, "opacity", op);
       }
+      window._meshState = nv.meshes.map(m => [m.name, m.visible, m.opacity, m.indexCount]);
       nv.drawScene();
     };
     const legend = (key) => {
@@ -395,8 +398,21 @@ const AirwayApp = (() => {
       }
       return 0;
     };
-    let lastClick = null;
-    $("gl").addEventListener("pointerdown", (e) => { lastClick = { x: e.offsetX, y: e.offsetY, t: Date.now() }; });
+    let lastClick = null, downAt = null;
+    $("gl").addEventListener("pointerdown", (e) => { downAt = lastClick = { x: e.offsetX, y: e.offsetY, t: Date.now() }; });
+    // NiiVue picks a point on the 3D surface only on double-click (resetBriCon);
+    // a plain click that did not turn into a drag should do it too.
+    $("gl").addEventListener("pointerup", (e) => {
+      if (!downAt || Math.hypot(e.offsetX - downAt.x, e.offsetY - downAt.y) > 4 || e.button !== 0) return;
+      try {
+        const dpr = nv.uiData.dpr || 1;
+        if (nv.inRenderTile(e.offsetX * dpr, e.offsetY * dpr) >= 0) {
+          lastClick = { x: e.offsetX, y: e.offsetY, t: Date.now() };
+          nv.uiData.mouseDepthPicker = true;
+          nv.drawScene(); nv.drawScene();
+        }
+      } catch (_) {}
+    });
     let bubbleTimer = null;
     const bubble = (html, at) => {
       const el = $("pick");
