@@ -213,10 +213,11 @@ for r in range(2):
         if c >= len(imgs[r]):
             continue
         ax.imshow(imgs[r][c])
-        ax.set_title(f"{letters[r][c]}  {vols[r][c]:.1f} mL\nDice {dices[r][c]:.1f}", fontsize=22,
-                     color="#1a1a19", pad=8, linespacing=1.15)
-fig.subplots_adjust(wspace=0.015, hspace=0.16, left=0.005, right=0.995,
-                    top=0.91, bottom=0.005)
+        # the letter and the Dice under the panel; volumes are in the caption text
+        ax.text(0.5, -0.03, f"{letters[r][c]}  Dice {dices[r][c]:.1f}", transform=ax.transAxes,
+                ha="center", va="top", fontsize=24, color="#1a1a19")
+fig.subplots_adjust(wspace=0.015, hspace=0.18, left=0.005, right=0.995,
+                    top=0.995, bottom=0.06)
 for ext in ("pdf", "png"):
     fig.savefig(f"{OUT}.{ext}", dpi=300, bbox_inches="tight", facecolor="white")
 print("wrote", OUT + ".pdf")
