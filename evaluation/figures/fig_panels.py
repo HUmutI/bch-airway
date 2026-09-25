@@ -7,14 +7,17 @@ the union, which contains all five, and the final component is highlighted by
 colour rather than by scale.
 """
 import os, sys, numpy as np, nibabel as nib
-sys.path.insert(0, "/path/to/airway-data/BALANCED_COMBINED_90_2026-09-15/scripts")
+ROOT = os.environ.get("AIRWAY_ROOT", "/path/to/airway-data")
+sys.path.insert(0, f"{ROOT}/BALANCED_COMBINED_90_2026-09-15/scripts")
 import matplotlib; matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from scipy import ndimage
 import airway_surface_render as sr
 
-D = "/path/to/airway-data/airway-seg/AGE_BAND/SUBJECT/EXAMPLE_CASE"
-OUT = "/path/to/airway-data/AIRWAY_METHOD_PAPER/figures/01_member_panels"
+# the 0.9-year-old infant used throughout the paper, and its expert annotation
+D = os.environ.get("CASE_DIR", f"{ROOT}/airway-seg/age_00-01/sub-0012/sub-0012_acc-0295")
+GT = os.environ.get("GT_PATH", f"{ROOT}/pediatric_gts_v2/anish_revised__sub-0012_acc-0295.nii.gz")
+OUT = os.environ.get("FIG_OUT", f"{ROOT}/AIRWAY_METHOD_PAPER/figures/01_member_panels")
 MARGIN_MM = 4.0
 
 files = ["airway_bin.nii.gz", "medpseg_airway.nii.gz", "tfenet_airway.nii.gz"]
@@ -72,6 +75,31 @@ def field_of(mask, render_mm=0.4, clean=False):
 
 def ml(mask):
     return mask.sum() * float(np.prod(spacing)) / 1000.0
+
+
+# Dice of every panel against the expert annotation, on the unclipped masks,
+# exactly as benchmark_pediatric scores them (the inlet clip above is display
+# only). The annotation is on the source grid; load it the same way.
+def dice_table():
+    import SimpleITK as sitk
+    ref = sitk.ReadImage(os.path.join(D, files[0]))
+    g = sitk.ReadImage(GT)
+    assert g.GetSize() == ref.GetSize(), (g.GetSize(), ref.GetSize())
+    dg = np.array(g.GetDirection()).reshape(3, 3); dr = np.array(ref.GetDirection()).reshape(3, 3)
+    gt = sitk.GetArrayFromImage(g) > 0
+    for axis_sitk, sgn in enumerate(np.diag(dg) / np.diag(dr)):
+        if sgn < 0:
+            gt = np.flip(gt, 2 - axis_sitk)
+    raw = {f: sitk.GetArrayFromImage(sitk.ReadImage(os.path.join(D, f))) > 0 for f in files}
+    a, m, t = (raw[f] for f in files)
+    u = a | m | t
+    fin = sitk.GetArrayFromImage(sitk.ReadImage(os.path.join(D, "union3_lcc.nii.gz"))) > 0
+    def sel(x):
+        lab, n = ndimage.label(x, structure=ndimage.generate_binary_structure(3, 1))
+        hit = lab[a]; hit = hit[hit > 0]
+        return lab == int(np.bincount(hit).argmax())
+    d = lambda p: 100.0 * 2 * (p & gt).sum() / (p.sum() + gt.sum())
+    return [[d(a), d(m), d(t), d(u), d(fin)], [d(sel(a)), d(sel(m)), d(sel(t)), d(sel(u))]]
 
 def seeded(mask, seed):
     """The component of `mask` holding the most voxels of `seed`, 6-connected.
@@ -170,9 +198,12 @@ imgs = [[im[int(r0 * im.shape[0]):int(r1 * im.shape[0]),
 aspects = [im[0].shape[0] / im[0].shape[1] for im in imgs]
 print("  row aspects after cropping:", [round(a, 3) for a in aspects])
 
+dices = dice_table()
+for r in range(2):
+    print(f"  row {r+1} dice:", [f"{v:.1f}" for v in dices[r]])
 NCOL = 5
 PANEL_W = 15.2 / NCOL
-fig_h = PANEL_W * sum(aspects) + 0.95
+fig_h = PANEL_W * sum(aspects) + 1.5
 fig, axgrid = plt.subplots(2, NCOL, figsize=(15.2, fig_h),
                            gridspec_kw={"height_ratios": aspects})
 for r in range(2):
@@ -182,10 +213,10 @@ for r in range(2):
         if c >= len(imgs[r]):
             continue
         ax.imshow(imgs[r][c])
-        ax.set_title(f"{letters[r][c]}  {vols[r][c]:.1f} mL", fontsize=24,
-                     color="#1a1a19", pad=8)
-fig.subplots_adjust(wspace=0.015, hspace=0.10, left=0.005, right=0.995,
-                    top=0.94, bottom=0.005)
+        ax.set_title(f"{letters[r][c]}  {vols[r][c]:.1f} mL\nDice {dices[r][c]:.1f}", fontsize=22,
+                     color="#1a1a19", pad=8, linespacing=1.15)
+fig.subplots_adjust(wspace=0.015, hspace=0.16, left=0.005, right=0.995,
+                    top=0.91, bottom=0.005)
 for ext in ("pdf", "png"):
     fig.savefig(f"{OUT}.{ext}", dpi=300, bbox_inches="tight", facecolor="white")
 print("wrote", OUT + ".pdf")

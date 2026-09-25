@@ -324,17 +324,22 @@ every case.
 \begin{figure}[tbp]
 \centering
 \includegraphics[width=\textwidth]{figures/01_member_panels.pdf}
-\caption{The segmentation stage on one examination, an infant of 0.9 years.
-Every panel shares one crop, camera and physical scale, so what differs is the
-mask alone, and the frame is set by the union so that nothing any member
-produced is cropped away. AirMorph (a) is conservative and clean, MEDPSeg (b)
-adds detached debris, and TfeNet (c) contributes two slab artefacts that
-together exceed the airway in volume. Their union (d) inherits all of it.
-Selecting the component carrying the seed rather than the largest one recovers
-the airway (e). On this examination the largest component is a slab, so the
-conventional rule would have discarded the tree entirely. Panel (e) is rendered
-on a finer grid with smoothing artefacts suppressed, which does not affect the
-volumes printed on the panels, measured on the masks themselves.}
+\caption{The segmentation stage on one examination, an infant of 0.9 years
+whose airway carries an expert annotation of 3.8\,mL. Every panel shares one
+crop, camera and physical scale, so what differs is the mask alone, and the
+frame is set by the union so that nothing any member produced is cropped
+away. Above each panel are the mask's volume and its Dice against the
+annotation. AirMorph (a) is conservative and clean, MEDPSeg (b) adds detached
+debris, and TfeNet (c) contributes two slab artefacts that together exceed
+the airway in volume, so its Dice is 16.8 although it covers more of the
+annotated tree than either other member. Their union (d) inherits all of it,
+at Dice 14.9. Selecting the component carrying the seed rather than the
+largest one recovers the airway (e), at Dice 88.3, the highest of every panel
+and above the same rule applied to any member on its own (f to i). On this
+examination the largest component is a slab, so the conventional rule would
+have discarded the tree entirely. Panel (e) is rendered on a finer grid with
+smoothing artefacts suppressed, which does not affect the volumes and Dice
+printed on the panels, measured on the masks themselves.}
 \label{fig:panels}
 \end{figure}
 
