@@ -2,7 +2,7 @@
 """Build web/normative.json: age-banded percentile grids of the airway
 measurements the site reports, from the 90-scan normative cohort.
 
-The cohort tables live on izmir (FINAL_AIRWAY_90_RESULTS_2026-09-16, see
+The cohort tables live on izmir (cohort90_results, see
 cohort90/README.md). Only aggregates leave this script: for every metric and
 every two-year age band, the percentiles of the scans in that band and its
 two neighbours (about 30 scans), never a per-scan value. The browser turns a
@@ -15,7 +15,7 @@ from collections import defaultdict
 import numpy as np
 
 ROOT = os.environ.get("AIRWAY_ROOT", "/fileserver/external/quin/ege")
-R90 = os.path.join(ROOT, "FINAL_AIRWAY_90_RESULTS_2026-09-16")
+R90 = os.path.join(ROOT, "cohort90_results")
 CSV = os.path.join(R90, "AIRWAY_RESULTS_90", "csv")
 OUT = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "web", "normative.json")
 
@@ -119,7 +119,7 @@ def main():
         return lo, hi
 
     metrics = sorted({k for m in per_case.values() for k in m if k != "age_years"})
-    out = {"source": "90-scan normative pediatric cohort (FINAL_AIRWAY_90_RESULTS_2026-09-16), "
+    out = {"source": "90-scan normative pediatric cohort (cohort90_results), "
                      "10 scans per two-year band, one scan per patient; percentiles per band are "
                      "computed over that band and its two neighbours",
            "bands": [f"{lo}-{hi}" for lo, hi in BANDS], "grid": GRID,

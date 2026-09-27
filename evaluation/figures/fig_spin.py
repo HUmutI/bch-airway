@@ -16,7 +16,7 @@ looping GIF cannot show anyway.
 import argparse, os, sys
 import numpy as np
 import pandas as pd
-sys.path.insert(0, "/path/to/airway-data/BALANCED_COMBINED_90_2026-09-15/scripts")
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import matplotlib; matplotlib.use("Agg")
 import matplotlib.colors as mc
 from scipy import ndimage
@@ -25,9 +25,9 @@ import airway_surface_render as sr
 
 CASE = "EXAMPLE_CASE"
 D = f"/path/to/airway-data/airway-seg/AGE_BAND/SUBJECT/{CASE}"
-OUT = "/path/to/airway-data/AIRWAY_METHOD_PAPER/figures/06_spin"
+OUT = "/path/to/airway-data/paper/figures/06_spin"
 TABLE = "/path/to/airway-data/or_all3_run/normal_airway_branch_morphometry.csv"
-COHORT = "/path/to/airway-data/FINAL_AIRWAY_90_RESULTS_2026-09-16/cohort_90.csv"
+COHORT = "/path/to/airway-data/cohort90_results/cohort_90.csv"
 
 ORDER = ["Trachea", "Right main bronchus", "Left main bronchus",
          "Right Upper Lobe", "Right Middle Lobe", "Right Lower Lobe",

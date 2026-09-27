@@ -29,7 +29,7 @@ from scipy.optimize import LinearConstraint, milp, Bounds
 
 BASE = Path("/fileserver/external/quin/ege")
 RUN = Path(__file__).resolve().parents[1]
-PREVIOUS = BASE / "BALANCED_COMBINED_90_2026-09-15"
+PREVIOUS = BASE / "_archive_2026-09-26" / "BALANCED_COMBINED_90_2026-09-15"
 E3_EXCLUDED = {"E3_0026"}  # implausible 5 mm slice spacing, never analysed
 CENTRAL_AIRWAY_QC_EXCLUDED = {
     "E3_0002", "sub-0261_acc-0081", "sub-0261_acc-0029", "sub-0359_acc-0369",

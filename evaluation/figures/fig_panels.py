@@ -8,7 +8,7 @@ colour rather than by scale.
 """
 import os, sys, numpy as np, nibabel as nib
 ROOT = os.environ.get("AIRWAY_ROOT", "/path/to/airway-data")
-sys.path.insert(0, f"{ROOT}/BALANCED_COMBINED_90_2026-09-15/scripts")
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import matplotlib; matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from scipy import ndimage
@@ -16,8 +16,8 @@ import airway_surface_render as sr
 
 # the 0.9-year-old infant used throughout the paper, and its expert annotation
 D = os.environ.get("CASE_DIR", f"{ROOT}/airway-seg/age_00-01/sub-0012/sub-0012_acc-0295")
-GT = os.environ.get("GT_PATH", f"{ROOT}/pediatric_gts_v2/anish_revised__sub-0012_acc-0295.nii.gz")
-OUT = os.environ.get("FIG_OUT", f"{ROOT}/AIRWAY_METHOD_PAPER/figures/01_member_panels")
+GT = os.environ.get("GT_PATH", f"{ROOT}/pediatric_annotations/anish_revised__sub-0012_acc-0295.nii.gz")
+OUT = os.environ.get("FIG_OUT", f"{ROOT}/paper/figures/01_member_panels")
 MARGIN_MM = 4.0
 
 files = ["airway_bin.nii.gz", "medpseg_airway.nii.gz", "tfenet_airway.nii.gz"]

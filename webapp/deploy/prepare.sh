@@ -11,7 +11,7 @@ for f in airmorph_seg.tar.gz medpseg_airway.tar.gz tfenet_bas.tar.gz fuse_union3
     cp -n "$BASE/all_3_lcc/$f" "$V/" 2>/dev/null || true
 done
 cp "$BASE/or_all3_run/scripts/09_airmorph_morphometry.py" "$V/scripts/"
-cp "$BASE/FINAL_AIRWAY_90_RESULTS_2026-09-16/reproducibility_scripts/axis_geometry.py" "$V/scripts/"
+cp "$BASE/cohort90_results/reproducibility_scripts/axis_geometry.py" "$V/scripts/"
 cp "$BASE/or_all3_run/code/AirMorph/requirements.txt" "$V/requirements_airmorph.txt"
 cp "$BASE/or_all3_run/code/TfeNet/requirements.txt" "$V/requirements_tfenet.txt"
 md5sum -c - <<'SUM'

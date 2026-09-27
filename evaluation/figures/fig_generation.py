@@ -30,7 +30,7 @@ plt.rcParams.update({
     "axes.linewidth": 1.1, "xtick.major.width": 1.1, "ytick.major.width": 1.1,
 })
 
-B = "/path/to/airway-data/AIRWAY_METHOD_PAPER"
+B = "/path/to/airway-data/paper"
 OUT = os.path.join(B, "figures", "04_by_generation")
 
 seg = pd.read_csv(f"{B}/recompute_2026-09-16/per_generation_atm26.csv")

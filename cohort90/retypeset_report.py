@@ -26,7 +26,7 @@ TARGET = RESULTS / "FINAL_INCLUSIVE_N10_airway_report_90.tex"
 # The untouched generated source, kept aside on first run so this stays re-runnable.
 SOURCE = RESULTS / "FINAL_INCLUSIVE_N10_airway_report_90.source.tex"
 FIGURES = RESULTS / "figures"
-NEW_FIGURES = BASE / "BALANCED_COMBINED_90_2026-09-15"
+NEW_FIGURES = BASE / "_archive_2026-09-26" / "BALANCED_COMBINED_90_2026-09-15"
 
 PREAMBLE = r"""\documentclass[11pt]{article}
 \usepackage[letterpaper,left=0.9in,right=0.9in,top=0.75in,bottom=0.75in]{geometry}

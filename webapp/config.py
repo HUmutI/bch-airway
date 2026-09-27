@@ -62,7 +62,7 @@ PALETTE = os.path.join(HERE, "web", "palette.json")   # served as /static/palett
 MORPHOMETRY_SCRIPT = os.environ.get("AIRWAY_MORPHOMETRY_SCRIPT",
                                     os.path.join(OR3, "scripts", "09_airmorph_morphometry.py"))
 AXIS_GEOMETRY_SCRIPT = os.environ.get("AIRWAY_AXIS_GEOMETRY_SCRIPT",
-                                      os.path.join(BASE, "FINAL_AIRWAY_90_RESULTS_2026-09-16",
+                                      os.path.join(BASE, "cohort90_results",
                                                    "reproducibility_scripts", "axis_geometry.py"))
 
 # Where the GPU is: "local" (a worker polls JOBS_DIR, as on izmir), "aws"

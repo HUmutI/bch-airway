@@ -158,7 +158,7 @@ per-lobe, all branches (click a row → crosshair jumps there).
   40 columns per branch. Needs `case_{skel_parsing,parse}.nii.gz`,
   `case_airway_{graph,feature_cls,graph_cls}.npy`, `case_anno.json`,
   `union3_lcc.nii.gz`, all present in `jobs/<id>/case/`.
-- `FINAL_AIRWAY_90_RESULTS_2026-09-16/reproducibility_scripts/axis_geometry.py`
+- `cohort90_results/reproducibility_scripts/axis_geometry.py`
   → `measure_case(case_id, case_dir, root, lmb, rmb)`: perpendicular cross
   sections, intrathoracic tracheal length, lung volume. Needs `lunglobe.nii.gz`.
 - Root/LMB/RMB selection re-implemented in `stage_morphometry.py`

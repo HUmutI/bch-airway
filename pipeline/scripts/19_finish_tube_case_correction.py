@@ -15,7 +15,7 @@ import pandas as pd
 
 BASE = Path(os.environ.get("OR3_BASE", "/fileserver/external/quin/ege"))
 RUN = BASE / "or_all3_run"
-BAL = BASE / "BALANCED_COMBINED_90_2026-09-15"
+BAL = BASE / "_archive_2026-09-26" / "BALANCED_COMBINED_90_2026-09-15"
 CASE_ID = "sub-0534_acc-0193"
 CASE = BASE / "airway-seg/age_01-02/sub-0534/sub-0534_acc-0193"
 

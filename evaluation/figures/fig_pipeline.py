@@ -19,7 +19,7 @@ three voxels across in the source data and this figure is inspected closely.
 """
 import os, sys
 import numpy as np, pandas as pd
-sys.path.insert(0, "/path/to/airway-data/BALANCED_COMBINED_90_2026-09-15/scripts")
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import matplotlib; matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
@@ -32,9 +32,9 @@ sr.SMOOTH_VOX = 3.0          # 0.45 mm physical, as in the other renders
 
 CASE = "EXAMPLE_CASE"
 D = f"/path/to/airway-data/airway-seg/AGE_BAND/SUBJECT/{CASE}"
-OUT = "/path/to/airway-data/AIRWAY_METHOD_PAPER/figures/03_pipeline"
+OUT = "/path/to/airway-data/paper/figures/03_pipeline"
 TABLE = "/path/to/airway-data/or_all3_run/normal_airway_branch_morphometry.csv"
-COHORT = "/path/to/airway-data/FINAL_AIRWAY_90_RESULTS_2026-09-16/cohort_90.csv"
+COHORT = "/path/to/airway-data/cohort90_results/cohort_90.csv"
 
 ORDER = ["Trachea", "Right main bronchus", "Left main bronchus",
          "Right Upper Lobe", "Right Middle Lobe", "Right Lower Lobe",

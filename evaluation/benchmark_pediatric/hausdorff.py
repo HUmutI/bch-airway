@@ -22,7 +22,7 @@ import numpy as np
 from scipy import ndimage
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-RECOMPUTE = "/path/to/airway-data/AIRWAY_METHOD_PAPER/recompute_2026-09-16"
+RECOMPUTE = "/path/to/airway-data/paper/recompute_2026-09-16"
 sys.path.insert(0, os.path.join(RECOMPUTE, "shim"))
 sys.path.insert(0, RECOMPUTE)
 sys.path.insert(0, HERE)

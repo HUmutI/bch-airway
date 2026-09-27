@@ -21,7 +21,7 @@ import argparse, csv, json, os, sys, time
 import numpy as np
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-RECOMPUTE = "/path/to/airway-data/AIRWAY_METHOD_PAPER/recompute_2026-09-16"
+RECOMPUTE = "/path/to/airway-data/paper/recompute_2026-09-16"
 sys.path.insert(0, os.path.join(RECOMPUTE, "shim"))
 sys.path.insert(0, RECOMPUTE)
 
@@ -31,7 +31,7 @@ from util.utils import load_itk_image, restore_image_via_box
 from recompute import score, keep_seeded_component, keep_largest_component
 
 VAL_ROOT = "/path/to/airway-data/ATM26_VAL_RUN"
-TEST_ROOT = ("/path/to/airway-data/AIRWAY_METHOD_PAPER/"
+TEST_ROOT = ("/path/to/airway-data/paper/"
              "airway_paper_bundle/08_masks_and_gt")
 
 # The two splits live in different trees because the test masks came from the

@@ -65,7 +65,7 @@ def ranks(values, cols):
         print(f"    {m:<12} ours {values[OURS][m]:7.2f}  rank {r.index(OURS)+1}/9")
 
 
-B = "/path/to/airway-data/AIRWAY_METHOD_PAPER"
+B = "/path/to/airway-data/paper"
 COLS = ["DSC", "clDice", "TLD", "BND", "Sensitivity", "Precision", "HD95"]
 DEC = {c: 2 for c in COLS}
 

@@ -7,7 +7,7 @@ an infant airway are only a few voxels across. Only the connected airway is
 drawn, so nothing appears as a floating fragment.
 """
 import os, sys, numpy as np, pandas as pd
-sys.path.insert(0, "/path/to/airway-data/BALANCED_COMBINED_90_2026-09-15/scripts")
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import matplotlib; matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
@@ -20,7 +20,7 @@ sr.SMOOTH_VOX = 2.25         # 0.45 mm physical, the same as the coarse render
 
 CASE = "EXAMPLE_CASE"
 D = "/path/to/airway-data/airway-seg/AGE_BAND/SUBJECT/EXAMPLE_CASE"
-OUT = "/path/to/airway-data/AIRWAY_METHOD_PAPER/figures/02_branch_labels"
+OUT = "/path/to/airway-data/paper/figures/02_branch_labels"
 TABLE = "/path/to/airway-data/or_all3_run/normal_airway_branch_morphometry.csv"
 
 # The lobar label set puts the trachea and both main bronchi in one class, so
@@ -36,7 +36,7 @@ COLOURS = ["#1a1a19", "#008300", "#8d5fd3",
            "#2a78d6", "#eb6834", "#1baf7a",
            "#eda100", "#e87ba4", "#b4b3aa"]
 
-COHORT = "/path/to/airway-data/FINAL_AIRWAY_90_RESULTS_2026-09-16/cohort_90.csv"
+COHORT = "/path/to/airway-data/cohort90_results/cohort_90.csv"
 c = pd.read_csv(COHORT); c = c[c.case_id == CASE].iloc[0]
 ROOT, LMB, RMB = int(c.root_branch_id), int(c.lmb_branch_id), int(c.rmb_branch_id)
 

@@ -56,7 +56,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.join(HERE, "shim"))
 
 BUNDLE = os.path.join(os.environ.get("AIRWAY_ROOT", "/path/to/airway-data"),
-                      "AIRWAY_METHOD_PAPER", "airway_paper_bundle")
+                      "paper", "airway_paper_bundle")
 MASKS = os.path.join(BUNDLE, "08_masks_and_gt")
 GT_LABELS = os.path.join(MASKS, "gt_labelsTr")
 CACHE = os.path.join(MASKS, "gt_cache_centerlines")

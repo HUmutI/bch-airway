@@ -4,7 +4,7 @@ The 90-scan balanced normative cohort (10 per age group, one scan per
 patient, sex recorded), measured with the pipeline's morphometry and written
 up as a report for the radiologists. Code only; the cohort tables, the
 report and the figures stay on izmir in
-`FINAL_AIRWAY_90_RESULTS_2026-09-16/`.
+`cohort90_results/`.
 
 | script | what |
 |---|---|

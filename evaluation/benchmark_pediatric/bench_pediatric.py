@@ -26,7 +26,7 @@ import numpy as np
 import SimpleITK as sitk
 
 VAL_RUN = "/path/to/airway-data/ATM26_VAL_RUN"
-RECOMPUTE = "/path/to/airway-data/AIRWAY_METHOD_PAPER/recompute_2026-09-16"
+RECOMPUTE = "/path/to/airway-data/paper/recompute_2026-09-16"
 sys.path.insert(0, os.path.join(RECOMPUTE, "shim"))
 sys.path.insert(0, RECOMPUTE)
 sys.path.insert(0, VAL_RUN)
@@ -37,7 +37,7 @@ from recompute import score, keep_seeded_component
 from util.airwayatlas_utils import IMRAirwayAtlas_SkeletonExtraction
 
 SEG_ROOT = "/path/to/airway-data/airway-seg"
-COHORT = "/path/to/airway-data/FINAL_AIRWAY_90_RESULTS_2026-09-16/cohort_90.csv"
+COHORT = "/path/to/airway-data/cohort90_results/cohort_90.csv"
 MEMBERS = {"airmorph": "airway_bin.nii.gz",
            "medpseg": "medpseg_airway.nii.gz",
            "tfenet": "tfenet_airway.nii.gz"}

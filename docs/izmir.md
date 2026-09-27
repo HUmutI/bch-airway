@@ -16,10 +16,10 @@ with the NVIDIA runtime). Everything lives under
 | `all_3_lcc/fuse_union3.py` | `pipeline/fuse_union3.py` | symlink |
 | `airway-dataset/` | — | the 849 source scans (de-identified). **Never copied anywhere.** |
 | `airway-seg/` | — | results, one directory per scan, mirrors the dataset tree |
-| `FINAL_AIRWAY_90_RESULTS_2026-09-16/reproducibility_scripts/` | `cohort90/` | symlink |
-| `FINAL_AIRWAY_90_RESULTS_2026-09-16/` (rest) | — | cohort tables, report, figures; not in git |
+| `cohort90_results/reproducibility_scripts/` | `cohort90/` | symlink |
+| `cohort90_results/` (rest) | — | cohort tables, report, figures; not in git |
 | `airway_web/` | `webapp/` | symlink into the checkout; `jobs/`, `.venv/`, `deploy/vendor/` live inside it, ignored by git |
-| `AIRWAY_METHOD_PAPER/` | `paper/` | only `.tex` and `.bib` are in git |
+| `paper/` | `paper/` | only `.tex` and `.bib` are in git |
 
 If you edit a file through one of the symlinked paths you are editing the
 checkout; commit from `bch-airway/`.

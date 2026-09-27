@@ -7,7 +7,7 @@ the numbers in the cohort tables:
   measure_case()   or_all3_run/scripts/09_airmorph_morphometry.py
                    one row per branch: centreline length, chord, tortuosity,
                    EDT radius statistics, branching angle, generation, names
-  axis_geometry    FINAL_AIRWAY_90_RESULTS_2026-09-16/reproducibility_scripts/
+  axis_geometry    cohort90_results/reproducibility_scripts/
                    perpendicular cross sections of trachea and main bronchi,
                    intrathoracic tracheal length, lung volume
 
