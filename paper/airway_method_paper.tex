@@ -279,7 +279,8 @@ return air density.
 
 \subsection{Confidence map and uncertainty-aware refinement}
 \label{sec:confidence}
-A union keeps whatever any one member marks, so part of the mask rests on a
+Figure~\ref{fig:unc-arch} places the stage in the pipeline. A union keeps
+whatever any one member marks, so part of the mask rests on a
 single model, and the mask itself does not say which part. The seven
 predictors behind it, AirMorph's five member networks (its mask is their
 three-of-five vote), MEDPSeg and TfeNet, mark each fused voxel in one of 24
@@ -308,6 +309,18 @@ regression on branch evidence and geometry fitted on the validation
 branches; it removed false branches but changed no metric measurably, and
 is off by default. $\kappa$ was chosen on validation as the largest DSC gain
 with at most one point of branch-detection loss, giving $\kappa=0.4$.
+
+\begin{figure}[tbp]
+\centering
+\includegraphics[width=\textwidth]{figures/08_architecture_uncertainty.pdf}
+\caption{The uncertainty-aware ensemble. The segmentation front end of
+Figure~\ref{fig:arch} is unchanged; the seven predictors behind it mark every
+fused voxel with one of 24 vote patterns, the pattern's precision on the
+validation split is the voxel's confidence, and the confidence is shown as it
+is, summarised per branch, and optionally used to trim each branch's boundary
+relative to the confidence of its own centreline.}
+\label{fig:unc-arch}
+\end{figure}
 
 \subsection{Branch assignment}
 The fused mask is skeletonised, the skeleton is cut into segments at bifurcation
@@ -760,13 +773,19 @@ mode, and the confidence map, which transfers, is the part we rely on.
 
 \begin{figure}[tbp]
 \centering
-\includegraphics[width=\textwidth]{figures/05_confidence.pdf}
-\caption{The confidence map on one test volume. Left: the fused mask projected
-coronally and coloured by the mean confidence along the ray. Middle: the same
-projection coloured by the reference, grey where correct and red where a ray
-holds only false-positive voxels. Right: an axial slice with the map over the
-CT and the reference outline in cyan. The red of the middle panel coincides
-with the low confidence of the left one.}
+\includegraphics[width=\textwidth]{figures/08_confidence_panels.pdf}
+\caption{The confidence map and the refinement on one adult test volume
+(ATM\_078, top) and the 0.9-year-old infant of Figure~\ref{fig:panels}
+(bottom). (a,\,e) The fused mask (union, seeded component) with its surface
+coloured by the calibrated confidence, red where one model stands alone and
+green where all seven predictors agree. (b,\,f) The same surface coloured by
+the reference, blue where the voxel is airway and red where it is a false
+positive: the red of (b) sits where (a) is red or orange. (c,\,g) The refined
+mask ($\kappa=0.4$). (d,\,h) The reference. In the adult the union carries
+18.3 per cent false-positive voxels, mostly a thin shell on true branches, and
+the refinement removes a third of them; in the infant the reference is wider
+than every member, the union is 99.2 per cent precise, and the refinement can
+only lose. Dice against the reference under each panel.}
 \label{fig:confidence}
 \end{figure}
 
