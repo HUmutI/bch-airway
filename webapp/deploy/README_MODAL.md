@@ -66,8 +66,9 @@ GPU function instead of waking an EC2 instance.
   changed layers upload), change the default in `modal_app.py`, then
   `modal app stop airway -y && modal deploy modal_app.py`. v2 (2026-09-24)
   carries the fast label and morphometry stages; v3 (same day) the QC flags
-  and the ITK-SNAP bundle. A deploy that changes the image takes ~5 min
-  while Modal imports it.
+  and the ITK-SNAP bundle; v6 (2026-10-04) the AirMorph vote volume, the
+  confidence map and the optional topofuse mode (`AIRWAY_FUSION`). A deploy
+  that changes the image takes ~5 min while Modal imports it.
 - Logs: `modal app logs airway`, or the dashboard.
 
 ## Deployed 2026-09-23

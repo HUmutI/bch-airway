@@ -25,7 +25,7 @@ follow from the named tree.
 | directory | what | start at |
 |---|---|---|
 | `pipeline/` | the cohort pipeline: set up the three model environments, run all stages over a dataset tree, fuse, QC, morphometry | `pipeline/README_RUN.md` |
-| `webapp/` | the website: upload a NIfTI, get mask + labels + viewer + morphometry; Docker images and the AWS runbook | `webapp/README.md`, `webapp/handoff_website.md` |
+| `webapp/` | the website: upload a NIfTI, get mask + labels + per-voxel confidence + viewer + morphometry; Docker images and the Modal runbook | `webapp/README.md`, `webapp/handoff_website.md` |
 | `models/` | how to obtain the three model tarballs (code + weights), what was changed in them, licences | `models/README.md` |
 | `cohort90/` | selection, measurement and report of the 90-scan normative cohort | `cohort90/README.md` |
 | `evaluation/` | benchmark against ATM'22 and pediatric annotations, the fusion-rule sweep, the labelling reconstruction, paper figures | `evaluation/README.md` |

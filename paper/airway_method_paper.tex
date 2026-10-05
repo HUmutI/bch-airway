@@ -548,7 +548,12 @@ raw mask covers 92.99 per cent of the lumen and the union 99.50. The union's
 DSC stays within 1.5 points of the best member at every generation. That is the
 trade the union makes and the reason it was adopted: it recovers more of the
 tree than any member at every depth, and pays for it in boundary precision
-rather than in missed branches.
+rather than in missed branches. The two
+added rows show what the confidence of Section~\ref{sec:confidence} buys:
+the refined union has the best DSC of all six strategies at generations 1 to
+4 and stays within 1.6 points of the union's branch detection at every
+generation, whereas the majority vote, which has the best whole-tree DSC,
+loses 13 to 16 points of branch detection from generation 7 onward.
 
 \begin{figure}[tbp]
 \centering
@@ -571,8 +576,10 @@ per generation here.}
 \begin{table}[tbp]
 \centering
 \caption{Accuracy by airway generation on the benchmark test set, for each
-member alone and for the adopted strategy, over the volumes containing each
-generation (mean $\pm$ SD). The metrics are those of Table~\ref{tab:variants}
+member alone, the adopted union, the majority vote with seeded selection and
+the proposed uncertainty-aware refinement of the union
+(Section~\ref{sec:confidence}), over the volumes containing each generation
+(mean $\pm$ SD). The metrics are those of Table~\ref{tab:variants}
 restricted to the branches of one generation: TLD is the fraction of that
 generation's centreline covered, BND the fraction of its branches with at
 least 80 per cent of their centreline covered. The members are scored as the
@@ -582,65 +589,87 @@ all three keeps one seeded component. Generations 1 to 7 are present in all
 1482, 1444, 1008 and 593 branches at generations 1 to 10. Best value per
 generation and column in bold.}
 \label{tab:gen}
-\setlength{\tabcolsep}{2pt}\scriptsize
+\setlength{\tabcolsep}{1.3pt}\scriptsize
 \begin{tabular}{@{}llccccc@{}}
 \toprule
 Gen & Strategy & DSC & TLD & BND & Sensitivity & Precision \\
 \midrule
-1 & AirMorph & $95.13 \pm 5.46$ & $\mathbf{100.00} \pm 0.00$ & $\mathbf{100.00} \pm 0.00$ & $92.99 \pm 9.82$ & $\mathbf{98.00} \pm 1.91$ \\
- & MEDPSeg & $\mathbf{98.41} \pm 0.93$ & $\mathbf{100.00} \pm 0.00$ & $\mathbf{100.00} \pm 0.00$ & $99.24 \pm 0.86$ & $97.64 \pm 1.97$ \\
+1 & AirMorph & $95.13 \pm 5.46$ & $\mathbf{100.00} \pm 0.00$ & $\mathbf{100.00} \pm 0.00$ & $92.99 \pm 9.82$ & $98.00 \pm 1.91$ \\
+ & MEDPSeg & $98.41 \pm 0.93$ & $\mathbf{100.00} \pm 0.00$ & $\mathbf{100.00} \pm 0.00$ & $99.24 \pm 0.86$ & $97.64 \pm 1.97$ \\
  & TfeNet & $95.59 \pm 3.81$ & $\mathbf{100.00} \pm 0.00$ & $\mathbf{100.00} \pm 0.00$ & $95.24 \pm 3.33$ & $96.13 \pm 5.65$ \\
  & All three & $98.39 \pm 1.07$ & $\mathbf{100.00} \pm 0.00$ & $\mathbf{100.00} \pm 0.00$ & $\mathbf{99.50} \pm 0.75$ & $97.33 \pm 2.12$ \\
+ & Majority vote & $98.12 \pm 1.39$ & $\mathbf{100.00} \pm 0.00$ & $\mathbf{100.00} \pm 0.00$ & $97.89 \pm 2.74$ & $98.41 \pm 1.71$ \\
+ & Proposed & $\mathbf{98.68} \pm 0.85$ & $\mathbf{100.00} \pm 0.00$ & $\mathbf{100.00} \pm 0.00$ & $98.95 \pm 1.07$ & $\mathbf{98.43} \pm 1.73$ \\
 \addlinespace[2pt]
-2 & AirMorph & $\mathbf{98.28} \pm 1.20$ & $\mathbf{100.00} \pm 0.00$ & $\mathbf{100.00} \pm 0.00$ & $99.29 \pm 1.02$ & $97.33 \pm 2.35$ \\
+2 & AirMorph & $98.28 \pm 1.20$ & $\mathbf{100.00} \pm 0.00$ & $\mathbf{100.00} \pm 0.00$ & $99.29 \pm 1.02$ & $97.33 \pm 2.35$ \\
  & MEDPSeg & $97.96 \pm 1.14$ & $\mathbf{100.00} \pm 0.00$ & $\mathbf{100.00} \pm 0.00$ & $98.77 \pm 1.39$ & $97.22 \pm 2.36$ \\
  & TfeNet & $97.55 \pm 1.12$ & $\mathbf{100.00} \pm 0.00$ & $\mathbf{100.00} \pm 0.00$ & $95.81 \pm 2.43$ & $\mathbf{99.39} \pm 0.96$ \\
  & All three & $97.92 \pm 1.32$ & $\mathbf{100.00} \pm 0.00$ & $\mathbf{100.00} \pm 0.00$ & $\mathbf{99.44} \pm 0.98$ & $96.49 \pm 2.58$ \\
+ & Majority vote & $98.36 \pm 1.03$ & $\mathbf{100.00} \pm 0.00$ & $\mathbf{100.00} \pm 0.00$ & $98.72 \pm 1.40$ & $98.05 \pm 2.10$ \\
+ & Proposed & $\mathbf{98.37} \pm 1.01$ & $\mathbf{100.00} \pm 0.00$ & $\mathbf{100.00} \pm 0.00$ & $98.66 \pm 1.45$ & $98.12 \pm 2.05$ \\
 \addlinespace[2pt]
-3 & AirMorph & $\mathbf{97.22} \pm 2.78$ & $\mathbf{100.00} \pm 0.00$ & $\mathbf{100.00} \pm 0.00$ & $98.76 \pm 1.81$ & $95.90 \pm 5.17$ \\
+3 & AirMorph & $97.22 \pm 2.78$ & $\mathbf{100.00} \pm 0.00$ & $\mathbf{100.00} \pm 0.00$ & $98.76 \pm 1.81$ & $95.90 \pm 5.17$ \\
  & MEDPSeg & $96.77 \pm 2.76$ & $99.83 \pm 0.72$ & $99.52 \pm 2.61$ & $97.95 \pm 2.24$ & $95.84 \pm 5.31$ \\
  & TfeNet & $96.37 \pm 2.19$ & $\mathbf{100.00} \pm 0.00$ & $\mathbf{100.00} \pm 0.00$ & $94.46 \pm 3.97$ & $\mathbf{98.57} \pm 3.53$ \\
  & All three & $96.80 \pm 3.08$ & $\mathbf{100.00} \pm 0.00$ & $\mathbf{100.00} \pm 0.00$ & $\mathbf{98.98} \pm 1.72$ & $94.94 \pm 5.67$ \\
+ & Majority vote & $\mathbf{97.28} \pm 2.47$ & $\mathbf{100.00} \pm 0.00$ & $\mathbf{100.00} \pm 0.00$ & $97.91 \pm 2.35$ & $96.85 \pm 4.84$ \\
+ & Proposed & $97.25 \pm 2.49$ & $\mathbf{100.00} \pm 0.00$ & $\mathbf{100.00} \pm 0.00$ & $97.81 \pm 2.44$ & $96.89 \pm 4.88$ \\
 \addlinespace[2pt]
 4 & AirMorph & $95.01 \pm 4.16$ & $99.71 \pm 0.88$ & $99.03 \pm 3.03$ & $98.33 \pm 2.17$ & $92.20 \pm 7.06$ \\
- & MEDPSeg & $\mathbf{95.09} \pm 3.71$ & $99.28 \pm 1.73$ & $98.89 \pm 3.45$ & $96.46 \pm 3.32$ & $94.16 \pm 6.89$ \\
+ & MEDPSeg & $95.09 \pm 3.71$ & $99.28 \pm 1.73$ & $98.89 \pm 3.45$ & $96.46 \pm 3.32$ & $94.16 \pm 6.89$ \\
  & TfeNet & $92.03 \pm 15.59$ & $99.27 \pm 1.63$ & $98.47 \pm 4.16$ & $91.94 \pm 5.29$ & $\mathbf{95.27} \pm 17.10$ \\
  & All three & $94.70 \pm 4.44$ & $\mathbf{99.79} \pm 0.84$ & $\mathbf{99.31} \pm 2.70$ & $\mathbf{98.73} \pm 2.01$ & $91.36 \pm 7.59$ \\
+ & Majority vote & $95.61 \pm 3.50$ & $99.58 \pm 1.36$ & $\mathbf{99.31} \pm 2.70$ & $96.67 \pm 3.19$ & $94.94 \pm 6.54$ \\
+ & Proposed & $\mathbf{95.72} \pm 3.79$ & $99.69 \pm 0.99$ & $\mathbf{99.31} \pm 2.70$ & $96.93 \pm 3.01$ & $94.92 \pm 6.91$ \\
 \addlinespace[2pt]
 5 & AirMorph & $90.29 \pm 9.19$ & $98.71 \pm 3.16$ & $98.62 \pm 3.86$ & $97.85 \pm 3.56$ & $84.96 \pm 12.75$ \\
- & MEDPSeg & $\mathbf{91.15} \pm 7.07$ & $96.14 \pm 5.13$ & $95.77 \pm 7.54$ & $93.72 \pm 4.85$ & $\mathbf{89.63} \pm 10.76$ \\
+ & MEDPSeg & $91.15 \pm 7.07$ & $96.14 \pm 5.13$ & $95.77 \pm 7.54$ & $93.72 \pm 4.85$ & $89.63 \pm 10.76$ \\
  & TfeNet & $84.78 \pm 16.57$ & $96.38 \pm 3.41$ & $96.35 \pm 5.65$ & $89.81 \pm 5.25$ & $84.05 \pm 23.17$ \\
  & All three & $90.40 \pm 8.05$ & $\mathbf{98.90} \pm 2.81$ & $\mathbf{99.02} \pm 3.66$ & $\mathbf{98.22} \pm 3.27$ & $84.70 \pm 11.80$ \\
+ & Majority vote & $\mathbf{92.65} \pm 6.12$ & $97.24 \pm 4.39$ & $97.75 \pm 5.19$ & $95.06 \pm 4.36$ & $\mathbf{91.17} \pm 10.01$ \\
+ & Proposed & $92.38 \pm 7.42$ & $98.59 \pm 3.05$ & $\mathbf{99.02} \pm 3.66$ & $96.11 \pm 4.07$ & $89.92 \pm 11.48$ \\
 \addlinespace[2pt]
 6 & AirMorph & $85.61 \pm 11.26$ & $96.64 \pm 5.40$ & $96.63 \pm 6.34$ & $96.20 \pm 5.57$ & $78.83 \pm 14.57$ \\
- & MEDPSeg & $\mathbf{86.42} \pm 8.43$ & $91.81 \pm 7.06$ & $89.55 \pm 10.94$ & $88.89 \pm 7.64$ & $\mathbf{85.16} \pm 11.48$ \\
+ & MEDPSeg & $86.42 \pm 8.43$ & $91.81 \pm 7.06$ & $89.55 \pm 10.94$ & $88.89 \pm 7.64$ & $85.16 \pm 11.48$ \\
  & TfeNet & $69.84 \pm 24.65$ & $92.21 \pm 6.14$ & $89.39 \pm 9.21$ & $87.49 \pm 6.64$ & $64.43 \pm 30.06$ \\
  & All three & $85.38 \pm 9.89$ & $\mathbf{96.68} \pm 3.80$ & $\mathbf{96.80} \pm 3.70$ & $\mathbf{96.51} \pm 4.06$ & $77.89 \pm 13.55$ \\
+ & Majority vote & $\mathbf{88.46} \pm 8.51$ & $92.83 \pm 6.91$ & $92.41 \pm 8.01$ & $91.72 \pm 6.72$ & $\mathbf{86.92} \pm 12.72$ \\
+ & Proposed & $87.53 \pm 9.40$ & $96.15 \pm 4.02$ & $95.78 \pm 3.97$ & $94.29 \pm 5.30$ & $83.09 \pm 13.46$ \\
 \addlinespace[2pt]
-7 & AirMorph & $\mathbf{80.21} \pm 11.51$ & $94.14 \pm 7.78$ & $90.32 \pm 13.12$ & $93.80 \pm 8.11$ & $72.02 \pm 15.42$ \\
- & MEDPSeg & $79.50 \pm 12.39$ & $85.04 \pm 10.15$ & $73.32 \pm 17.88$ & $83.52 \pm 11.06$ & $\mathbf{78.27} \pm 15.27$ \\
+7 & AirMorph & $80.21 \pm 11.51$ & $94.14 \pm 7.78$ & $90.32 \pm 13.12$ & $93.80 \pm 8.11$ & $72.02 \pm 15.42$ \\
+ & MEDPSeg & $79.50 \pm 12.39$ & $85.04 \pm 10.15$ & $73.32 \pm 17.88$ & $83.52 \pm 11.06$ & $78.27 \pm 15.27$ \\
  & TfeNet & $49.21 \pm 27.69$ & $84.58 \pm 11.33$ & $73.36 \pm 18.71$ & $83.30 \pm 10.05$ & $40.99 \pm 28.56$ \\
  & All three & $80.06 \pm 11.43$ & $\mathbf{94.30} \pm 5.68$ & $\mathbf{91.04} \pm 9.62$ & $\mathbf{94.23} \pm 6.59$ & $71.28 \pm 15.23$ \\
+ & Majority vote & $\mathbf{83.19} \pm 9.93$ & $85.18 \pm 11.25$ & $78.22 \pm 16.76$ & $86.29 \pm 10.71$ & $\mathbf{82.68} \pm 14.58$ \\
+ & Proposed & $81.95 \pm 10.99$ & $93.58 \pm 5.93$ & $90.18 \pm 10.85$ & $92.38 \pm 7.32$ & $75.40 \pm 15.29$ \\
 \addlinespace[2pt]
 8 & AirMorph & $80.21 \pm 11.15$ & $93.50 \pm 6.18$ & $88.26 \pm 11.18$ & $93.64 \pm 6.98$ & $71.83 \pm 14.98$ \\
- & MEDPSeg & $79.70 \pm 9.42$ & $82.55 \pm 9.72$ & $66.85 \pm 14.64$ & $81.09 \pm 11.64$ & $\mathbf{79.65} \pm 11.49$ \\
+ & MEDPSeg & $79.70 \pm 9.42$ & $82.55 \pm 9.72$ & $66.85 \pm 14.64$ & $81.09 \pm 11.64$ & $79.65 \pm 11.49$ \\
  & TfeNet & $38.55 \pm 18.28$ & $83.11 \pm 10.23$ & $70.23 \pm 18.71$ & $82.17 \pm 8.89$ & $27.52 \pm 17.34$ \\
- & All three & $\mathbf{80.66} \pm 9.74$ & $\mathbf{93.93} \pm 5.36$ & $\mathbf{90.71} \pm 8.61$ & $\mathbf{94.58} \pm 5.23$ & $71.83 \pm 13.85$ \\
+ & All three & $80.66 \pm 9.74$ & $\mathbf{93.93} \pm 5.36$ & $\mathbf{90.71} \pm 8.61$ & $\mathbf{94.58} \pm 5.23$ & $71.83 \pm 13.85$ \\
+ & Majority vote & $\mathbf{83.92} \pm 8.28$ & $84.63 \pm 8.64$ & $74.46 \pm 14.98$ & $86.00 \pm 8.21$ & $\mathbf{83.75} \pm 13.32$ \\
+ & Proposed & $82.35 \pm 9.26$ & $93.12 \pm 5.50$ & $89.08 \pm 8.88$ & $92.87 \pm 6.00$ & $75.52 \pm 13.69$ \\
 \addlinespace[2pt]
-9 & AirMorph & $\mathbf{79.44} \pm 13.51$ & $93.59 \pm 7.73$ & $87.89 \pm 13.65$ & $93.56 \pm 8.31$ & $71.83 \pm 17.71$ \\
- & MEDPSeg & $77.92 \pm 11.98$ & $83.37 \pm 10.07$ & $66.26 \pm 17.81$ & $80.69 \pm 11.66$ & $\mathbf{77.28} \pm 15.02$ \\
+9 & AirMorph & $79.44 \pm 13.51$ & $93.59 \pm 7.73$ & $87.89 \pm 13.65$ & $93.56 \pm 8.31$ & $71.83 \pm 17.71$ \\
+ & MEDPSeg & $77.92 \pm 11.98$ & $83.37 \pm 10.07$ & $66.26 \pm 17.81$ & $80.69 \pm 11.66$ & $77.28 \pm 15.02$ \\
  & TfeNet & $36.66 \pm 25.28$ & $82.13 \pm 12.88$ & $66.88 \pm 22.64$ & $80.71 \pm 10.67$ & $29.13 \pm 27.34$ \\
  & All three & $79.37 \pm 11.84$ & $\mathbf{94.06} \pm 6.32$ & $\mathbf{91.03} \pm 11.35$ & $\mathbf{94.39} \pm 6.85$ & $70.70 \pm 16.05$ \\
+ & Majority vote & $\mathbf{82.71} \pm 8.34$ & $83.96 \pm 11.28$ & $71.83 \pm 18.97$ & $85.00 \pm 9.82$ & $\mathbf{83.28} \pm 14.32$ \\
+ & Proposed & $80.94 \pm 11.38$ & $93.49 \pm 6.48$ & $89.66 \pm 11.78$ & $92.71 \pm 7.44$ & $74.10 \pm 15.96$ \\
 \addlinespace[2pt]
-10 & AirMorph & $\mathbf{76.20} \pm 18.59$ & $\mathbf{91.35} \pm 12.06$ & $83.81 \pm 20.99$ & $\mathbf{90.50} \pm 13.93$ & $\mathbf{70.27} \pm 21.51$ \\
+10 & AirMorph & $76.20 \pm 18.59$ & $\mathbf{91.35} \pm 12.06$ & $83.81 \pm 20.99$ & $\mathbf{90.50} \pm 13.93$ & $70.27 \pm 21.51$ \\
  & MEDPSeg & $72.06 \pm 17.46$ & $83.06 \pm 8.76$ & $65.78 \pm 19.93$ & $80.46 \pm 11.60$ & $70.14 \pm 22.13$ \\
  & TfeNet & $28.14 \pm 28.79$ & $79.77 \pm 14.21$ & $62.67 \pm 25.38$ & $77.98 \pm 13.64$ & $22.35 \pm 27.51$ \\
  & All three & $74.73 \pm 19.76$ & $90.60 \pm 15.77$ & $\mathbf{84.89} \pm 20.42$ & $89.89 \pm 16.74$ & $69.17 \pm 20.23$ \\
+ & Majority vote & $\mathbf{76.68} \pm 19.20$ & $79.53 \pm 18.06$ & $68.77 \pm 26.05$ & $80.40 \pm 17.83$ & $\mathbf{80.46} \pm 20.62$ \\
+ & Proposed & $75.79 \pm 20.28$ & $89.56 \pm 16.57$ & $84.21 \pm 20.48$ & $88.30 \pm 17.15$ & $72.13 \pm 20.82$ \\
 \midrule
 \multicolumn{1}{@{}l}{Whole tree} & AirMorph & $91.64 \pm 5.68$ & $94.95 \pm 4.83$ & $91.27 \pm 8.21$ & $95.04 \pm 5.16$ & $89.12 \pm 8.42$ \\
- & MEDPSeg & $\mathbf{93.29} \pm 3.33$ & $87.50 \pm 6.55$ & $76.10 \pm 12.01$ & $94.78 \pm 2.69$ & $\mathbf{92.02} \pm 5.22$ \\
+ & MEDPSeg & $93.29 \pm 3.33$ & $87.50 \pm 6.55$ & $76.10 \pm 12.01$ & $94.78 \pm 2.69$ & $92.02 \pm 5.22$ \\
  & TfeNet & $65.23 \pm 16.86$ & $86.54 \pm 8.33$ & $75.65 \pm 15.14$ & $91.44 \pm 3.49$ & $53.68 \pm 21.43$ \\
  & All three & $93.06 \pm 4.37$ & $\mathbf{95.22} \pm 3.68$ & $\mathbf{92.31} \pm 6.58$ & $\mathbf{98.23} \pm 1.56$ & $88.71 \pm 7.08$ \\
+ & Majority vote & $\mathbf{94.38} \pm 3.19$ & $87.84 \pm 7.13$ & $80.35 \pm 12.43$ & $95.00 \pm 2.68$ & $\mathbf{94.04} \pm 5.74$ \\
+ & Proposed & $94.04 \pm 3.97$ & $94.60 \pm 3.90$ & $91.33 \pm 7.01$ & $97.09 \pm 1.97$ & $91.46 \pm 6.60$ \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -700,21 +729,23 @@ Predicted  & $86.75\pm17.03$ & $99.37\pm0.69$ & $97.07\pm5.82$ & $98.92\pm1.56$ 
 \subsection{Confidence and refinement}
 \label{sec:res-confidence}
 Figure~\ref{fig:confidence} shows the map on one test volume beside the
-reference, and Table~\ref{tab:conf} its accuracy. Scored as a detector of
+reference, Table~\ref{tab:patterns} the table behind it, and
+Table~\ref{tab:conf} its accuracy. Scored as a detector of
 false-positive voxels inside the fused mask, the confidence reaches an AUROC
 of 0.90 on the test split, and the least confident 10 and 20 per cent of the
 mask hold 61 and 86 per cent of all false positives. The probabilities
 transfer from validation to test with an expected calibration error of 0.9
 points (Figure~\ref{fig:reliability}): 79 per cent of the mask is marked by
-all seven predictors and is 98 per cent correct. At branch level, 2.0 per cent
-of fully agreed branches are false against 36 per cent of branches supported
-by one model. On the pediatric volumes the ranking holds, AUROC 0.92, but the
+all seven predictors and is 98 per cent correct. At branch level
+(Table~\ref{tab:branchconf}), 2.0 per cent of fully agreed branches are false
+against 36 per cent of branches supported by one model, and the false rate
+falls monotonically with the confidence band. On the pediatric volumes the ranking holds, AUROC 0.92, but the
 absolute values do not: the expert masks are wider than any member, the union
 is 99.85 per cent precise against them, and every pattern is observed near
 100 per cent, so the adult table is pessimistic there by 11 points.
 
-The refinement moves the union to a point no voxel-level rule reached. On the
-test split DSC rises from 93.06 to 94.04 and precision from 88.71 to 91.46,
+The refinement moves the union to a point no voxel-level rule reached
+(Figure~\ref{fig:frontier}). On the test split DSC rises from 93.06 to 94.04 and precision from 88.71 to 91.46,
 better in 26 of 30 volumes, while branch detection falls from 92.31 to 91.33
 and tree length from 95.22 to 94.60; the best of the 51 earlier rules at DSC
 94.0 detected 86 per cent of branches. Per generation the refined mask has the
@@ -753,8 +784,8 @@ member and the adult probabilities are pessimistic.}
 \begin{table}[tbp]
 \centering
 \caption{The confidence map as a detector of error, and the union with and
-without refinement, on the test split (30 volumes) and the pediatric volumes
-(9). AUROC: false-positive voxels inside the fused mask; FP$_{20}$: share of
+without refinement, on the validation split (30 volumes, where the table and
+$\kappa$ were chosen), the test split (30) and the pediatric volumes (9). AUROC: false-positive voxels inside the fused mask; FP$_{20}$: share of
 all false-positive voxels inside the least confident 20 per cent of the mask;
 ECE: expected calibration error in points, validation probabilities applied
 to the split. Metrics as in Table~\ref{tab:variants}, mean over volumes.}
@@ -763,6 +794,11 @@ to the split. Metrics as in Table~\ref{tab:variants}, mean over volumes.}
 \begin{tabular}{@{}llcccccc@{}}
 \toprule
 Split & Strategy & DSC & clDice & TLD & BND & Sens. & Prec. \\
+\midrule
+Validation & Union, seeded & 92.45 & 89.19 & 95.80 & 93.23 & 98.34 & 87.44 \\
+ & Union, refined ($\kappa=0.4$) & 93.57 & 89.31 & 95.27 & 92.30 & 97.15 & 90.44 \\
+ & Majority vote, selected & 94.23 & 89.94 & 88.08 & 80.19 & 95.07 & 93.62 \\
+ & \multicolumn{7}{l}{Confidence: AUROC 0.90, FP$_{20}$ 86 per cent (the table is fitted here)} \\
 \midrule
 Test & Union, seeded & 93.06 & 90.24 & 95.22 & 92.31 & 98.23 & 88.71 \\
  & Union, refined ($\kappa=0.4$) & 94.04 & 90.18 & 94.60 & 91.33 & 97.09 & 91.46 \\
@@ -776,6 +812,86 @@ Pediatric & Union, seeded & 94.74 & 97.06 & 93.91 & 86.40 & 90.21 & 99.85 \\
 \bottomrule
 \end{tabular}
 \end{table}
+
+\begin{table}[tbp]
+\centering
+\caption{The 21 vote patterns observed inside the fused mask. Share: fraction
+of the validation mask with that pattern. $P$: fraction of those voxels that
+are reference airway on validation, which is the confidence assigned to the
+pattern; then the same fraction observed on the test split and on the
+pediatric volumes. AirMorph's mask is its $\geq 3$ vote, so 0 to 2 votes
+occur only where another model marks the voxel.}
+\label{tab:patterns}
+\setlength{\tabcolsep}{3pt}\footnotesize
+\begin{tabular}{@{}cccrrrr@{}}
+\toprule
+AirMorph votes & MEDPSeg & TfeNet & Share (\%) & $P$ val. (\%) & Test (\%) & Pediatric (\%) \\
+\midrule
+0 & yes & yes & 2.42 & 98.3 & 98.8 & 100.0 \\
+5 & yes & yes & 78.31 & 97.9 & 98.1 & 100.0 \\
+3 & yes & yes & 0.58 & 83.6 & 56.4 & 99.7 \\
+2 & yes & yes & 0.20 & 82.3 & 40.6 & 99.6 \\
+4 & yes & yes & 0.92 & 73.3 & 79.5 & 100.0 \\
+5 & yes & no & 3.68 & 70.4 & 74.1 & 99.9 \\
+5 & no & yes & 1.48 & 68.8 & 57.0 & 99.9 \\
+1 & yes & yes & 0.03 & 58.1 & 31.4 & 98.1 \\
+0 & yes & no & 1.20 & 53.9 & 61.0 & 98.8 \\
+5 & no & no & 1.18 & 52.6 & 53.8 & 99.7 \\
+4 & yes & no & 1.70 & 51.3 & 54.3 & 99.8 \\
+4 & no & yes & 0.56 & 46.2 & 39.7 & 99.6 \\
+4 & no & no & 1.89 & 34.3 & 37.1 & 99.2 \\
+3 & no & yes & 0.29 & 33.2 & 30.8 & 99.4 \\
+3 & yes & no & 1.09 & 31.8 & 31.5 & 99.7 \\
+1 & no & yes & 0.09 & 28.2 & 29.2 & 96.9 \\
+2 & no & yes & 0.14 & 27.7 & 29.4 & 99.1 \\
+0 & no & yes & 0.06 & 22.7 & 27.2 & 90.8 \\
+2 & yes & no & 0.70 & 20.8 & 21.5 & 99.1 \\
+3 & no & no & 3.06 & 17.3 & 18.3 & 99.0 \\
+1 & yes & no & 0.43 & 12.5 & 13.4 & 98.6 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}[tbp]
+\centering
+\caption{Branch confidence against the reference. Branches of the fused mask
+grouped by the mean confidence along their centreline; a branch is false when
+less than half of its centreline lies within one voxel of the reference.
+Test split: 10\,305 branches in 30 volumes; pediatric: 2\,087 branches in 9.}
+\label{tab:branchconf}
+\setlength{\tabcolsep}{3.5pt}\footnotesize
+\begin{tabular}{@{}lrrrrrr@{}}
+\toprule
+ & \multicolumn{3}{c}{Test} & \multicolumn{3}{c}{Pediatric} \\
+\cmidrule(lr){2-4}\cmidrule(lr){5-7}
+Confidence band & Branches & False & False (\%) & Branches & False & False (\%) \\
+\midrule
+All seven agree & 5\,225 & 104 & 2.0 & 758 & 0 & 0.0 \\
+0.9 to below 1 & 1\,289 & 133 & 10.3 & 392 & 0 & 0.0 \\
+2/3 to 0.9 & 2\,066 & 321 & 15.5 & 535 & 1 & 0.2 \\
+1/2 to 2/3 & 987 & 294 & 29.8 & 226 & 0 & 0.0 \\
+1/3 to 1/2 & 494 & 154 & 31.2 & 133 & 5 & 3.8 \\
+Up to 1/3 & 244 & 87 & 35.7 & 43 & 3 & 7.0 \\
+\midrule
+Supported by one model & 680 & & 35.7 & 189 & & 4.2 \\
+Supported by two & 1\,405 & & 28.0 & 348 & & 0.3 \\
+Supported by three & 8\,220 & & 5.6 & 1\,550 & & 0.0 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{figure}[tbp]
+\centering
+\includegraphics[width=\textwidth]{figures/07_frontier.pdf}
+\caption{Accuracy against completeness for every fusion rule on the test
+split: DSC against branch detection (left) and tree length (right) for the
+51 voxel-level rules of the validation sweep (grey), the three reference
+strategies, and the proposed refinement as $\kappa$ runs from 0 (the union)
+to 0.9, with the protected core at 1.5 voxels (solid) and 1 voxel (dashed).
+Rules below the window are omitted.}
+\label{fig:frontier}
+\end{figure}
+
 
 \subsection{Pediatric benchmark}
 Table~\ref{tab:ped} repeats the comparison of Table~\ref{tab:variants} on the
