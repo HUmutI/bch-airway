@@ -13,11 +13,14 @@ viewer loads the same geometry, so what is shown is what is downloaded.
       airway_segmental.nii.gz   segmental label per airway voxel
       airway_branches.nii.gz    branch instance id per airway voxel
       airway_centreline.nii.gz  the skeleton
+      airway_confidence.nii.gz  P(airway) per fused voxel, uint8 percent (stage_fuse)
       *_view.nii.gz             the same, resampled for the browser (see below)
       mesh_airway.mz3           airway surface, world mm
+      mesh_airway_<key>.mz3     the same surface coloured by lobe / segment /
+                                branch / confidence, one RGBA per vertex
       mesh_lobe_<k>.mz3         one surface per lobar label k
       itksnap_*_labels.txt      ITK-SNAP label descriptions in the site's colours
-      labels.json               class names and per-branch names
+      labels.json               class names, per-branch names and mean confidence
       summary.json              counts and volumes for the page
       airway_results.zip        all of the above
 
@@ -108,6 +111,21 @@ def vertex_colours(verts_zyx, label_zyx, colour_of, default=(150, 150, 150)):
             cache[v] = colour_of(int(v)) if v > 0 else default
         rgba[i, :3] = cache[v]
     return rgba
+
+
+# Confidence percent -> colour: red (one model, likely wrong) through yellow
+# at 50 % to green (all models agree). web/app.js registers the same ramp as
+# NiiVue colormap "confidence", so slices and surface agree.
+CONF_RAMP = [(0, (214, 39, 40)), (50, (255, 200, 0)), (100, (44, 160, 44))]
+
+
+def confidence_colour(pct):
+    pct = min(max(int(pct), 0), 100)
+    for (p0, c0), (p1, c1) in zip(CONF_RAMP, CONF_RAMP[1:]):
+        if pct <= p1:
+            f = (pct - p0) / (p1 - p0)
+            return tuple(int(round(a + f * (b - a))) for a, b in zip(c0, c1))
+    return CONF_RAMP[-1][1]
 
 
 def mesh_from_mask(arr_zyx, img, sigma_vox=0.7, min_faces=100):
@@ -245,6 +263,24 @@ def qc_flags(case, src_imgs, labels, stats):
     if stats.get("airway_volume_ml") is not None and stats["airway_volume_ml"] < 2:
         warn("tiny_airway_volume", f"Airway lumen volume is {stats['airway_volume_ml']} mL, below anything in "
              "the normative cohort. Check that the scan is a chest CT in Hounsfield units.")
+
+    # 5. much of the mask rests on a single model
+    low = stats.get("low_confidence_fraction_pct")
+    if low is not None and low > 25:
+        warn("low_confidence", f"{low:.0f} % of the segmentation has a confidence below 50 %: that share is "
+             "supported by only one of the three models and is where false branches and leaks usually sit. "
+             "Switch the overlay to Confidence and check the red parts before using the mask.")
+    bc = labels.get("branch_confidence") or {}
+    names = labels.get("branches") or {}
+    if bc and names:
+        weak = sorted(((v, k) for k, v in bc.items() if v < 50 and k in names))
+        if weak:
+            def nm(k):
+                b = names[k]
+                return " / ".join(dict.fromkeys(b)) if isinstance(b, list) else str(b)
+            listed = ", ".join(f"{nm(k)} (#{k}, {v:.0f} %)" for v, k in weak[:5])
+            info("low_confidence_branches", f"{len(weak)} branch{'es' if len(weak) != 1 else ''} with a mean "
+                 f"confidence below 50 %{', the weakest' if len(weak) > 5 else ''}: {listed}.")
     return flags
 
 
@@ -253,8 +289,8 @@ def itksnap_bundle(res, labels):
     descriptions and a README that says how to open them next to the
     original CT, in ITK-SNAP or in the lab's 3D-editing fork."""
     files = [f for f in ("airway_mask.nii.gz", "airway_lobar.nii.gz", "airway_segmental.nii.gz",
-                         "airway_branches.nii.gz", "itksnap_lobar_labels.txt", "itksnap_segmental_labels.txt",
-                         "labels.json") if os.path.exists(os.path.join(res, f))]
+                         "airway_branches.nii.gz", "airway_confidence.nii.gz", "itksnap_lobar_labels.txt",
+                         "itksnap_segmental_labels.txt", "labels.json") if os.path.exists(os.path.join(res, f))]
     readme = """Airway segmentation for ITK-SNAP
 ================================
 
@@ -268,6 +304,10 @@ on top of it.
    (or itksnap_lobar_labels.txt), so each label shows its name and colour.
 4. airway_branches.nii.gz holds one label per named branch; labels.json maps
    the label value to the branch names.
+5. airway_confidence.nii.gz is the confidence (0-100 %) that each voxel is
+   airway, from how many of the models marked it. Open it as an additional
+   image to see where the mask rests on a single model; the red parts in
+   the web viewer are the voxels below 50 %.
 
 To correct the tree in the 3D view (surface brush, delete island, bridge,
 fill hole) use the lab's ITK-SNAP fork:
@@ -303,6 +343,7 @@ def main():
         "airway_segmental.nii.gz":  f"{cid}_pred_seg.nii.gz",
         "airway_branches.nii.gz":   f"{cid}_parse.nii.gz",
         "airway_centreline.nii.gz": "union3_lcc_skeleton.nii.gz",
+        "airway_confidence.nii.gz": "confidence.nii.gz",
     }
     stats = {}
     src_imgs = {}
@@ -321,6 +362,27 @@ def main():
         sitk.WriteImage(img, os.path.join(res, out), True)
         print(f"wrote {out}", flush=True)
 
+    # Confidence: mean over the mask and the share below 50 % (voxels that a
+    # single model put in), per branch for labels.json and the branch table.
+    branch_conf = {}
+    if "airway_confidence.nii.gz" in src_imgs:
+        conf = sitk.GetArrayFromImage(src_imgs["airway_confidence.nii.gz"])
+        m = (sitk.GetArrayFromImage(src_imgs["airway_mask.nii.gz"]) > 0
+             if "airway_mask.nii.gz" in src_imgs else conf > 0)
+        inside = conf[m]
+        if inside.size:
+            stats["mean_confidence_pct"] = round(float(inside.mean()), 1)
+            stats["low_confidence_fraction_pct"] = round(100 * float((inside < 50).mean()), 1)
+        if "airway_branches.nii.gz" in src_imgs:
+            br = sitk.GetArrayFromImage(src_imgs["airway_branches.nii.gz"]).astype(np.int64)
+            sel = br > 0
+            n = np.bincount(br[sel])
+            tot = np.bincount(br[sel], weights=conf[sel].astype(float))
+            branch_conf = {str(i): round(float(tot[i] / n[i]), 1) for i in np.flatnonzero(n)}
+    fusion_p = os.path.join(case, "fusion.json")
+    if os.path.exists(fusion_p):
+        stats["fusion"] = json.load(open(fusion_p))
+
     # Names for the viewer. class2anno.json is keyed by 0-based class id under
     # "lob", "seg" and "subseg", while the label volumes store class + 1 so that
     # 0 can mean background. The map written here is keyed by the voxel value,
@@ -336,6 +398,8 @@ def main():
             "branches": json.load(open(anno_p)),
         }
         labels["n_branches"] = len(labels["branches"])
+        if branch_conf:
+            labels["branch_confidence"] = branch_conf
         json.dump(labels, open(os.path.join(res, "labels.json"), "w"), indent=1)
         cat = pal["categorical"]
         lob_col = {v: pal["lobar"].get(n, cat[i % len(cat)])
@@ -395,6 +459,8 @@ def main():
             if "airway_branches.nii.gz" in src_imgs and labels.get("branches"):
                 col = {int(v): hex_rgb(cat[i % len(cat)]) for i, v in enumerate(labels["branches"])}
                 schemes["branches"] = ("airway_branches.nii.gz", lambda v, c=col: c.get(v, (150, 150, 150)))
+            if "airway_confidence.nii.gz" in src_imgs:
+                schemes["confidence"] = ("airway_confidence.nii.gz", confidence_colour)
             for key, (src, colour_of) in schemes.items():
                 arr = sitk.GetArrayFromImage(src_imgs[src])
                 rgba = vertex_colours(vzyx, arr, colour_of)

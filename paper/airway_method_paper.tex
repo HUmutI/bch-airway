@@ -154,7 +154,11 @@ returns the mask, the named tree, an in-browser viewer and per-branch
 morphometry, so that the method can be used from a browser without any local
 installation. (vi) An extension of ITK-SNAP that edits a segmentation directly
 in the 3D view, written to correct airway trees whose defects are visible only
-in 3D. We make no claim of superiority over state-of-the-art segmentation
+in 3D. (vii) A calibrated confidence for every voxel and every branch of the
+fused mask, read off the ensemble's vote pattern without retraining, which
+places 86 per cent of the false-positive voxels in the least confident fifth
+of the mask and, used to trim the mask, raises adult DSC by one point at
+a cost of one point of branch detection. We make no claim of superiority over state-of-the-art segmentation
 models and report no such comparison.
 
 % =====================================================================
@@ -273,6 +277,38 @@ cosines, so reorientation is applied in both directions and verified
 quantitatively by sampling the original CT at the final mask voxels, which must
 return air density.
 
+\subsection{Confidence map and uncertainty-aware refinement}
+\label{sec:confidence}
+A union keeps whatever any one member marks, so part of the mask rests on a
+single model, and the mask itself does not say which part. The seven
+predictors behind it, AirMorph's five member networks (its mask is their
+three-of-five vote), MEDPSeg and TfeNet, mark each fused voxel in one of 24
+\emph{vote patterns}. On the 30 validation volumes we count, per pattern, the
+fraction of voxels that are reference airway. That table is the confidence
+map: $P(\text{airway}\mid\text{pattern})$ for every voxel, with no training and
+no change to the members. A branch's confidence is the mean of the map along
+its centreline, and the web application shows both (Section~\ref{sec:tools}).
+The table is informative in itself. AirMorph's internal agreement is weak
+evidence on its own, a 5-of-5 vote with neither other model is 53 per cent
+airway and a 3-of-5 vote 17 per cent, whereas MEDPSeg and TfeNet agreeing
+without AirMorph is 98 per cent airway. It is agreement \emph{between} models
+that carries the information.
+
+The map also allows the mask to be tidied without giving up the completeness
+the union was adopted for. The fused mask is skeletonised and cut into
+branches, every voxel is assigned to its nearest branch, and a voxel is kept
+when its confidence is at least a fraction $\kappa$ of the confidence along
+its branch's centreline; the core within $\max(0.5\,r, 1.5\text{ voxels})$ of
+the centreline is always kept and the seeded-component rule is applied once
+more. A branch all three models see is trimmed towards their consensus; a
+distal branch that one model found keeps every voxel, because nothing in it
+has more support than its own centreline. The branch tree also admits
+topology-preserving pruning of improbable leaves, scored by a logistic
+regression on branch evidence and geometry fitted on the validation
+branches; it removed false branches but changed no metric measurably, and
+is off by default. $\kappa$ was chosen on validation as the largest DSC gain
+with at most one point of branch-detection loss, giving $\kappa=0.4$.
+
 \subsection{Branch assignment}
 The fused mask is skeletonised, the skeleton is cut into segments at bifurcation
 voxels, every lumen voxel is assigned to its nearest segment, and a
@@ -356,9 +392,11 @@ as separate stages on one 24\,GB GPU, about ten minutes for a
 $512\times512\times800$ scan, and the page reports progress stage by stage.
 The result opens in a viewer laid out like ITK-SNAP, three orthogonal slices
 and a 3D pane sharing one crosshair, with the airway, lobar, segmental and
-per-branch labels as switchable overlays, the airway surface in 3D coloured
-by whichever labelling is selected, and the branch under the cursor named in
-a readout. Below the viewer the tree is measured: length, inscribed and
+per-branch labels and the confidence map of Section~\ref{sec:confidence} as
+switchable overlays, the airway surface in 3D coloured by whichever is
+selected, the branch under the cursor named in a readout, and each branch's
+confidence beside its measurements, so that a reader sees which part of the
+tree rests on one model alone. Below the viewer the tree is measured: length, inscribed and
 cross-sectional diameter, branching angle and generation for every branch,
 the central airways and their ratios, and per-generation and per-lobe
 summaries. Given the patient's age, every measurement is also reported as a
@@ -659,6 +697,86 @@ Predicted  & $86.75\pm17.03$ & $99.37\pm0.69$ & $97.07\pm5.82$ & $98.92\pm1.56$ 
 \end{tabular}
 \end{table}
 
+\subsection{Confidence and refinement}
+\label{sec:res-confidence}
+Figure~\ref{fig:confidence} shows the map on one test volume beside the
+reference, and Table~\ref{tab:conf} its accuracy. Scored as a detector of
+false-positive voxels inside the fused mask, the confidence reaches an AUROC
+of 0.90 on the test split, and the least confident 10 and 20 per cent of the
+mask hold 61 and 86 per cent of all false positives. The probabilities
+transfer from validation to test with an expected calibration error of 0.9
+points (Figure~\ref{fig:reliability}): 79 per cent of the mask is marked by
+all seven predictors and is 98 per cent correct. At branch level, 2.0 per cent
+of fully agreed branches are false against 36 per cent of branches supported
+by one model. On the pediatric volumes the ranking holds, AUROC 0.92, but the
+absolute values do not: the expert masks are wider than any member, the union
+is 99.85 per cent precise against them, and every pattern is observed near
+100 per cent, so the adult table is pessimistic there by 11 points.
+
+The refinement moves the union to a point no voxel-level rule reached. On the
+test split DSC rises from 93.06 to 94.04 and precision from 88.71 to 91.46,
+better in 26 of 30 volumes, while branch detection falls from 92.31 to 91.33
+and tree length from 95.22 to 94.60; the best of the 51 earlier rules at DSC
+94.0 detected 86 per cent of branches. Per generation the refined mask has the
+best DSC of all strategies at generations 1 to 4 and stays within 1.6 points
+of the union's branch detection at every generation, where the majority vote
+is 13 to 16 points lower. On the pediatric volumes the same setting loses
+DSC, 94.74 to 92.67, and branch detection, 86.40 to 80.16, in all nine cases:
+with nothing to trim, it removes true wall voxels. The refinement is therefore
+an adult-benchmark result tied to that reference's boundary convention, the
+web application keeps the union as its default and offers the refinement as a
+mode, and the confidence map, which transfers, is the part we rely on.
+
+\begin{figure}[tbp]
+\centering
+\includegraphics[width=\textwidth]{figures/05_confidence.pdf}
+\caption{The confidence map on one test volume. Left: the fused mask projected
+coronally and coloured by the mean confidence along the ray. Middle: the same
+projection coloured by the reference, grey where correct and red where a ray
+holds only false-positive voxels. Right: an axial slice with the map over the
+CT and the reference outline in cyan. The red of the middle panel coincides
+with the low confidence of the left one.}
+\label{fig:confidence}
+\end{figure}
+
+\begin{figure}[tbp]
+\centering
+\includegraphics[width=0.85\textwidth]{figures/06_reliability.pdf}
+\caption{Calibration of the vote-pattern confidence. Each point is one of the
+24 patterns, its area the share of the mask it covers; predicted probability
+from the validation split against observed precision on the test split (left)
+and on the pediatric volumes (right), where the reference is wider than every
+member and the adult probabilities are pessimistic.}
+\label{fig:reliability}
+\end{figure}
+
+\begin{table}[tbp]
+\centering
+\caption{The confidence map as a detector of error, and the union with and
+without refinement, on the test split (30 volumes) and the pediatric volumes
+(9). AUROC: false-positive voxels inside the fused mask; FP$_{20}$: share of
+all false-positive voxels inside the least confident 20 per cent of the mask;
+ECE: expected calibration error in points, validation probabilities applied
+to the split. Metrics as in Table~\ref{tab:variants}, mean over volumes.}
+\label{tab:conf}
+\setlength{\tabcolsep}{3.5pt}\footnotesize
+\begin{tabular}{@{}llcccccc@{}}
+\toprule
+Split & Strategy & DSC & clDice & TLD & BND & Sens. & Prec. \\
+\midrule
+Test & Union, seeded & 93.06 & 90.24 & 95.22 & 92.31 & 98.23 & 88.71 \\
+ & Union, refined ($\kappa=0.4$) & 94.04 & 90.18 & 94.60 & 91.33 & 97.09 & 91.46 \\
+ & Majority vote, selected & 94.38 & 90.48 & 87.84 & 80.35 & 95.00 & 94.04 \\
+ & \multicolumn{7}{l}{Confidence: AUROC 0.90, FP$_{20}$ 86 per cent, ECE 0.9} \\
+\midrule
+Pediatric & Union, seeded & 94.74 & 97.06 & 93.91 & 86.40 & 90.21 & 99.85 \\
+ & Union, refined ($\kappa=0.4$) & 92.67 & 96.87 & 92.01 & 80.16 & 86.54 & 99.86 \\
+ & Majority vote, selected & 90.93 & 91.49 & 80.17 & 59.26 & 83.48 & 99.95 \\
+ & \multicolumn{7}{l}{Confidence: AUROC 0.92, FP$_{20}$ 95 per cent, ECE 11.2} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
 \subsection{Pediatric benchmark}
 Table~\ref{tab:ped} repeats the comparison of Table~\ref{tab:variants} on the
 nine annotated pediatric volumes. The union leads six of the seven metrics. It
@@ -738,6 +856,16 @@ where the two settings diverge most. Largest-component selection is standard and
 nearly harmless in adults, at three of 30, but altered six of 83 pediatric
 examinations and every one was an infant, six of nine. A method validated only
 in adults would not have surfaced this.
+
+The confidence map changes what the union is. Without it the union is a bet
+that completeness matters more than boundary agreement; with it the bet is
+annotated, voxel by voxel, with how much of the mask rests on one model and
+where. The same signal exposes a difference between the two reference
+standards: the adult benchmark draws a tight lumen and the pediatric experts a
+wider one, so a trimming that gains a point of DSC in adults loses two in
+children. That is not a failure of either reference, but it means a boundary
+rule tuned on one cannot be carried to the other, whereas the ranking the
+confidence provides carries over intact.
 
 \smallskip\noindent\textbf{Limitations.}
 One segmentation member was trained on the public

@@ -230,7 +230,7 @@ def run_job(job_dir, mock=False):
 
             j.wait({"fuse": j.spawn("fuse", [py["airmorph"], f"{S}/stage_fuse.py",
                     "--case-dir", j.case, "--fuse-script", C.FUSE_SCRIPT,
-                    "--connectivity", str(C.CONNECTIVITY)])})
+                    "--connectivity", str(C.CONNECTIVITY), "--fusion", C.FUSION])})
             j.wait({"label": j.spawn("label", [py["airmorph"], f"{S}/stage_label.py",
                     "--case-dir", j.case, "--class2anno", C.CLASS2ANNO])})
             j.wait({"package": j.spawn("package", [py["airmorph"], f"{S}/stage_package.py",

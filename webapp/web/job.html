@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Job · Airway segmentation</title>
-<link rel="stylesheet" href="/static/app.css?v=16">
+<link rel="stylesheet" href="/static/app.css?v=17">
 </head>
 <body>
 <div class="wrap wide">
@@ -80,6 +80,7 @@
           <label class="radio"><input type="radio" name="ov" value="lobar"><i class="multi"></i>Lobar labels</label>
           <label class="radio"><input type="radio" name="ov" value="segmental"><i class="multi"></i>Segmental labels</label>
           <label class="radio"><input type="radio" name="ov" value="branches"><i class="multi"></i>Branch instances</label>
+          <label class="radio" title="How sure the fusion is that each voxel is airway: red = one model alone, green = all agree"><input type="radio" name="ov" value="confidence"><i class="conf"></i>Confidence</label>
           <label class="slider">Opacity <input type="range" id="ov-op" min="0" max="100" value="55"></label>
           <label class="check"><input type="checkbox" id="ck-cl">Centreline</label>
         </section>
@@ -116,7 +117,7 @@
   window.Niivue = Niivue; window.NVImage = NVImage; window.NVMesh = NVMesh;
   window.dispatchEvent(new Event("niivue-ready"));
 </script>
-<script src="/static/app.js?v=16"></script>
+<script src="/static/app.js?v=17"></script>
 <script>AirwayApp.job();</script>
 </body>
 </html>

@@ -11,7 +11,7 @@ const AirwayApp = (() => {
   let NORM = null, AGE = null;
   const loadNorm = async () => {
     if (NORM) return NORM;
-    try { NORM = await (await fetch("/static/normative.json?v=16")).json(); } catch (_) { NORM = { metrics: {}, per_generation: {} }; }
+    try { NORM = await (await fetch("/static/normative.json?v=17")).json(); } catch (_) { NORM = { metrics: {}, per_generation: {} }; }
     return NORM;
   };
   const bandOf = (age) => {
@@ -175,6 +175,7 @@ const AirwayApp = (() => {
     if (r.airway_volume_ml != null) stats.push([`${r.airway_volume_ml} mL`, "airway lumen volume", pctBadge("airway_lumen_volume_ml", r.airway_volume_ml)]);
     if (r.branches != null) stats.push([r.branches, "branches named", pctBadge("branch_count", r.branches)]);
     if (r.lobes) stats.push([r.lobes.filter(l => l.name !== "trachea").length, "lobes reached", ""]);
+    if (r.mean_confidence_pct != null) stats.push([`${Math.round(r.mean_confidence_pct)} %`, "mean confidence", ""]);
     if (r.view_spacing_mm) stats.push([`${r.view_spacing_mm} mm`, "display resolution", ""]);
     if (r.source_orientation) stats.push([r.source_orientation, "output orientation", ""]);
     $("stats").innerHTML = stats.map(([b, s, p]) => `<div class="stat"><b>${b}</b><span>${s}</span>${p}</div>`).join("");
@@ -189,7 +190,8 @@ const AirwayApp = (() => {
       ["itksnap_bundle.zip", "ITK-SNAP bundle (labels + label descriptions + how-to)", "zip"],
       ["airway_mask.nii.gz", "Airway mask"], ["airway_lobar.nii.gz", "Lobar labels"],
       ["airway_segmental.nii.gz", "Segmental labels"], ["airway_branches.nii.gz", "Branch instances"],
-      ["airway_centreline.nii.gz", "Centreline"], ["mesh_airway.mz3", "Airway surface (MZ3)"],
+      ["airway_centreline.nii.gz", "Centreline"], ["airway_confidence.nii.gz", "Confidence map"],
+      ["mesh_airway.mz3", "Airway surface (MZ3)"],
       ["itksnap_lobar_labels.txt", "ITK-SNAP lobar labels"], ["itksnap_segmental_labels.txt", "ITK-SNAP segmental labels"],
       ["labels.json", "Branch names (JSON)"], ["summary.json", "Summary (JSON)"],
     ];
@@ -209,9 +211,11 @@ const AirwayApp = (() => {
       brNames[v] = Array.isArray(b) ? b.filter((x, j, a) => a.indexOf(x) === j).join(" · ") : String(b);
     });
     const airwayColour = pal.airway || "#d62b2b";
+    window._labels = labels;                 // the branch table reads branch_confidence from here
     const boot = () => viewer(id, f, { lobNames, lobColours, segNames, segColours, brColours, brNames,
                                         airwayColour, centreColour: pal.centreline || "#f5e663",
-                                        meshes: r.meshes || [] });
+                                        meshes: r.meshes || [],
+                                        confidence: { mean: r.mean_confidence_pct, low: r.low_confidence_fraction_pct } });
     if (window.Niivue) boot(); else window.addEventListener("niivue-ready", boot, { once: true });
   }
 
@@ -226,6 +230,23 @@ const AirwayApp = (() => {
     }
     return { R, G, B, A, I, labels: L };
   }
+
+  // Confidence ramp, the same stops stage_package.py paints the surface with:
+  // 0 % red, 50 % yellow, 100 % green. NiiVue builds a 256-entry LUT by
+  // interpolating between the I stops; entry 0 has alpha 0 so everything at or
+  // below cal_min (the 0 outside the mask) is transparent, and the overlay
+  // shader turns any non-zero alpha opaque, so the rest is solid colour.
+  const CONF_STOPS = [[0, [214, 39, 40]], [50, [255, 200, 0]], [100, [44, 160, 44]]];
+  const CONF_CMAP = { R: [214, 214, 255, 44], G: [39, 39, 200, 160], B: [40, 40, 0, 44], A: [0, 255, 255, 255], I: [0, 1, 128, 255] };
+  const confColour = (pct) => {
+    pct = Math.min(100, Math.max(0, Number(pct) || 0));
+    for (let i = 0; i < CONF_STOPS.length - 1; i++) {
+      const [p0, c0] = CONF_STOPS[i], [p1, c1] = CONF_STOPS[i + 1];
+      if (pct <= p1) { const t = (pct - p0) / (p1 - p0); return `rgb(${c0.map((a, k) => Math.round(a + t * (c1[k] - a))).join(",")})`; }
+    }
+    return `rgb(${CONF_STOPS[CONF_STOPS.length - 1][1].join(",")})`;
+  };
+  const confCell = (pct) => pct == null ? "–" : `<span class="conf"><i style="background:${confColour(pct)}"></i>${Math.round(pct)} %</span>`;
 
   async function viewer(id, f, L) {
     const say = (t) => { $("readout").textContent = t; };
@@ -242,6 +263,7 @@ const AirwayApp = (() => {
     try { await nv.attachTo("gl"); } catch (e) { fail("WebGL", e); return; }
     window.airwayViewer = nv;
     const NVImage = window.NVImage;
+    try { nv.addColormap("confidence", CONF_CMAP); } catch (e) { console.warn("confidence colormap", e); }
 
     // ---- state ---------------------------------------------------------------
     const OVERLAYS = {
@@ -249,6 +271,8 @@ const AirwayApp = (() => {
       lobar:     { file: "airway_lobar_view.nii.gz",     colours: L.lobColours, names: L.lobNames },
       segmental: { file: "airway_segmental_view.nii.gz", colours: L.segColours, names: L.segNames },
       branches:  { file: "airway_branches_view.nii.gz",  colours: L.brColours, names: L.brNames },
+      // continuous: a percent per voxel, not a label; see CONF_CMAP
+      confidence: { file: "airway_confidence_view.nii.gz", continuous: true, colormap: "confidence" },
     };
     const cache = {};
     let ct = null, overlay = null, overlayKey = null, centre = null, layout = "grid";
@@ -260,8 +284,9 @@ const AirwayApp = (() => {
       if (cache[key]) return cache[key];
       const o = OVERLAYS[key] || { file: "airway_centreline_view.nii.gz", colours: { 1: L.centreColour } };
       // the name must keep its extension: NiiVue picks the reader from it
-      const img = await NVImage.loadFromUrl({ url: f(o.file), name: o.file, colormap: "gray", opacity: 1 });
-      img.setColormapLabel(labelColormap(o.colours));
+      const img = await NVImage.loadFromUrl({ url: f(o.file), name: o.file, colormap: o.continuous ? o.colormap : "gray", opacity: 1 });
+      if (o.continuous) { img.cal_min = 1; img.cal_max = 100; }      // 0 = outside the mask, transparent
+      else img.setColormapLabel(labelColormap(o.colours));
       cache[key] = img;
       return img;
     };
@@ -306,7 +331,7 @@ const AirwayApp = (() => {
     const showMeshes = () => {
       const on = $("ck-mesh").checked, op = $("mesh-op").value / 100;
       const want = overlayKey === "lobar" ? "lobes"
-                 : (overlayKey === "segmental" || overlayKey === "branches") && hasMesh(`airway_${overlayKey}`) ? `airway_${overlayKey}`
+                 : ["segmental", "branches", "confidence"].includes(overlayKey) && hasMesh(`airway_${overlayKey}`) ? `airway_${overlayKey}`
                  : "airway";
       for (const m of nv.meshes) {
         const base = meshBase(m);
@@ -321,6 +346,18 @@ const AirwayApp = (() => {
     };
     const legend = (key) => {
       const o = OVERLAYS[key];
+      if (o.continuous) {
+        const c = L.confidence || {};
+        const grad = CONF_STOPS.map(([p, rgb]) => `rgb(${rgb.join(",")}) ${p}%`).join(", ");
+        $("legend").innerHTML =
+          `<div class="ramp" style="background:linear-gradient(90deg, ${grad})"></div>` +
+          `<span class="ramp-lab"><b>0 %</b> one model, likely wrong</span>` +
+          `<span class="ramp-lab"><b>50 %</b> two models, or a split AirMorph vote</span>` +
+          `<span class="ramp-lab"><b>100 %</b> all models agree</span>` +
+          (c.mean != null ? `<span class="ramp-stat">mean ${Math.round(c.mean)} % · ${c.low != null ? Math.round(c.low) : "–"} % of the mask below 50 %</span>` : "") +
+          `<span class="more">P(airway) given which models marked the voxel, calibrated on ATM'22.</span>`;
+        return;
+      }
       const keys = Object.keys(o.colours);
       const rows = keys.slice(0, 40).map(k => {
         const box = key === "lobar" && meshByName(`lobe_${k}`)
@@ -344,7 +381,10 @@ const AirwayApp = (() => {
         showMeshes();
         applyVisibility();
         say("Click a slice to read position and value");
-      } catch (e) { fail(`${key} overlay`, e); }
+      } catch (e) {
+        if (key === "confidence") { say("This result has no confidence map (it was run before the map existed). Re-run the scan to get one."); return; }
+        fail(`${key} overlay`, e);
+      }
     };
     const setLayout = (v) => {
       layout = v;
@@ -407,8 +447,13 @@ const AirwayApp = (() => {
           brId = labelAt(branchesImg, v);
           if (brId > 0) br = ` · ${L.brNames[String(brId)] || `branch ${brId}`} (#${brId})`;
         }
+        let cf = "";
+        if (overlayKey === "confidence" && overlay && v) {
+          const pct = labelAt(overlay, v, 1);
+          if (pct > 0) cf = ` · confidence ${pct} %`;
+        }
         say(`voxel ${Array.from(v).map(Math.round).join(", ")} · ` +
-            `${Array.from(mm).slice(0, 3).map(x => x.toFixed(1)).join(", ")} mm · ${hu} HU${br}`);
+            `${Array.from(mm).slice(0, 3).map(x => x.toFixed(1)).join(", ")} mm · ${hu} HU${br}${cf}`);
       } catch (_) {}
     };
 
@@ -456,7 +501,7 @@ const AirwayApp = (() => {
     const NVMesh = window.NVMesh;
     const loadColoured = async () => {
       if (!NVMesh || !NVMesh.loadFromUrl) return;
-      for (const key of ["segmental", "branches"]) {
+      for (const key of ["segmental", "branches", "confidence"]) {
         try {
           const m = await NVMesh.loadFromUrl({ url: f(`mesh_airway_${key}.mz3`), gl: nv.gl, name: meshName(`airway_${key}`), visible: false });
           nv.addMesh(m);
@@ -574,16 +619,21 @@ const AirwayApp = (() => {
     try { rows = await (await fetch(f("morphometry_table.json"))).json(); } catch (_) {}
     if (rows.length) {
       rows.sort((a, b) => a.generation - b.generation || a.branch_instance_id - b.branch_instance_id);
+      // mean confidence per branch (labels.json, written by the package stage); older results lack it
+      let bc = (window._labels || {}).branch_confidence;
+      if (!bc) { try { bc = (await (await fetch(f("labels.json"))).json()).branch_confidence; } catch (_) {} }
+      const conf = bc ? (r) => [confCell(bc[String(r.branch_instance_id)])] : () => [];
       html += `<h3 style="font-size:13px;margin:18px 0 6px">All branches <span class="hint">(click a row to jump there)</span></h3><div class="mwrap">` +
-        table(["#", "Gen", "Name", "Lobe", "Segment", "Length mm", "Ø mean mm", "Ø min mm", "Tortuosity", "Angle °", "Volume mm³", "QC"],
-          rows.map(r => [r.branch_instance_id, r.generation, esc(r.branch_name), esc(r.lobar_name), esc(r.segmental_name),
+        table(["#", "Gen", "Name", "Lobe", "Segment", ...(bc ? ["Conf"] : []), "Length mm", "Ø mean mm", "Ø min mm", "Tortuosity", "Angle °", "Volume mm³", "QC"],
+          rows.map(r => [r.branch_instance_id, r.generation, esc(r.branch_name), esc(r.lobar_name), esc(r.segmental_name), ...conf(r),
             num(r.centerline_length_mm), num(r.diameter_mean_mm), num(r.diameter_min_mm), num(r.tortuosity_length_ratio, 2),
             r.branch_angle_deg != null ? num(r.branch_angle_deg, 0) : "–", num(r.volume_mm3, 0), esc(r.geometry_qc_flags || "")])) + `</div>`;
     }
+    const bcNote = html.includes(">Conf<") ? '"Conf" is the branch\'s mean voxel confidence: the probability that it is airway given which of the three models marked it, calibrated on ATM\'22; below 50 % means one model alone. ' : "";
     html += `<p class="mnote">${AGE != null ? "<b>P</b> badges are percentiles for age: P36 means larger than in 36 % of healthy children of the same two-year age band (about 30 reference scans). &lt;P3 and &gt;P98 are outside what the reference can resolve; below P5 and above P95 are highlighted. Rows without a badge have no reference (e.g. generations beyond 10). " : ""}Measured on the segmented lumen with the centreline of the fused mask. Diameters:
       "inscribed" is twice the distance-transform radius along the centreline, "cross section" is the mean of short and
       long axis of the lumen in planes perpendicular to the centreline. Angles are between a branch and its parent.
-      Research use only.</p>`;
+      ${bcNote}Research use only.</p>`;
     html += `<div class="downloads" style="margin-top:10px"><a href="${f("morphometry_branches.csv")}" download>All branches (CSV)</a>
       <a href="${f("morphometry.json")}" download>Summary (JSON)</a></div>`;
     $("morph-body").innerHTML = html;

@@ -55,7 +55,7 @@ dependencies, so every stage is a subprocess in its own interpreter.
 | airmorph | airmorph | yes | AirMorph 5-member vote: `airway_bin`, `lunglobe`, `airway_skeleton` | 3 min |
 | medpseg | medpseg | yes | MEDPSeg CLI `--disable_lobe` → `medpseg_airway.nii.gz` | 3.5 min |
 | tfenet | tfenet | yes | TfeNet big+small, 128-cube stride 64, cropped to lung∪airway box + 24 vox | 4.3 min |
-| fuse | airmorph | no | `all_3_lcc/fuse_union3.py`: union, seeded 6-connected component → `union3_lcc.nii.gz` | 14 s |
+| fuse | airmorph | no | `all_3_lcc/fuse_union3.py`: union, seeded 6-connected component → `union3_lcc.nii.gz`; then the per-voxel confidence → `confidence.nii.gz`, `fusion.json` (optional topofuse pruning, see below) | 14 s (+ ~1 min topofuse) |
 | label | airmorph | no (CPU path) | TEASAR skeleton + graph-transformer classifier → `case_parse`, `case_pred_lob/seg`, `case_anno.json`; runs on the airway+lung bounding box, outputs identical | 70 s (was 5.5 min) |
 | package | airmorph | no | rotate everything to the upload's orientation, display copies, meshes, ITK-SNAP label files, `summary.json`, zip | 25 s |
 | morphometry | airmorph | no | per-branch and central-airway measurements, non-fatal; one pass over the volume instead of one per branch | 36 s (was 3.3 min) |
@@ -97,12 +97,61 @@ GPU (4 bytes/voxel). These are what the browser loads. Not in the zip.
 label descriptions in the site's colours. `morphometry.json`,
 `morphometry_table.json`, `morphometry_branches.csv`. `airway_results.zip`.
 
+## Confidence map
+
+A union keeps whatever any one model said, so part of every mask rests on a
+single model. Since 2026-10-04 the fuse stage attaches to each fused voxel
+the probability that it is airway given its *vote pattern* (how many of
+AirMorph's five networks, MEDPSeg yes/no, TfeNet yes/no), looked up in
+`worker/confidence_lut.json`, which was estimated on the 30 ATM'22 validation
+volumes (`evaluation/fusion_uncertainty`). The code is
+`worker/stages/topofuse.py` (self-contained copy of the study's tree.py /
+sweep.py / refine.py); `stage_airmorph.py` captures the vote count as
+`case/airmorph_votes.nii.gz` (uint8 0-5). Older jobs without that file get
+votes = 5 wherever AirMorph's mask is set (the stage logs a note).
+
+Outputs:
+- `case/confidence.nii.gz` (+ `_srcorient`): uint8 percent, 0 outside the
+  mask; `case/fusion.json`: mode, union / final voxel counts, branches
+  removed, mean confidence, fraction of mask voxels with P < 0.5.
+- `results/airway_confidence.nii.gz` (+ `_view`, in the ITK-SNAP bundle and
+  the zip), `results/mesh_airway_confidence.mz3` (the airway surface with
+  one RGBA per vertex: red 0 % → yellow 50 % → green 100 %, same ramp the
+  viewer registers as NiiVue colormap `confidence`).
+- `labels.json["branch_confidence"]`: `{branch id: mean percent}`, shown as
+  the "Conf" column of the branch table.
+- `summary.json`: `mean_confidence_pct`, `low_confidence_fraction_pct`
+  (P < 50 %), `fusion` (= fusion.json). QC: `low_confidence` (warn) when
+  more than 25 % of the mask is below 50 %; `low_confidence_branches`
+  (info) names up to five branches whose mean is below 50 %.
+- Viewer: fifth overlay radio "Confidence" (continuous colormap, `cal_min`
+  1 so the 0 outside the mask is transparent: NiiVue maps values below
+  cal_min to LUT entry 0, whose alpha is 0, and binarises overlay alpha),
+  gradient legend with the mean and the low-confidence share, confidence
+  under the cursor in the readout, the coloured surface in 3D.
+
+Fusion modes (`config.FUSION`, env `AIRWAY_FUSION`, passed to the stage as
+`--fusion`): `union` (default, the paper's mask, unchanged) or `topofuse`:
+after the confidence, the fused mask is skeletonised into branches, each
+branch gets a logistic probability (`worker/branch_logit.json`, fitted on
+ATM'22 validation), leaves below `AIRWAY_TOPOFUSE_TAU` (default 0, i.e. no pruning: on ATM'22
+it removed false branches but gained nothing measurable) are cut
+repeatedly (generations 1-3 are protected), then the boundary is trimmed:
+a voxel stays when its confidence is at least `AIRWAY_TOPOFUSE_KAPPA` (0.4)
+times its branch's centreline confidence or lies within
+`AIRWAY_TOPOFUSE_CORE` (1.5) voxels of the centreline, and the seeded
+component is taken again. The plain union is kept as
+`case/union3_lcc_union.nii.gz`. Everything downstream (label, package,
+morphometry) sees the final mask. The defaults are the operating point chosen on the ATM'22 validation split
+(max DSC with at most one point of branch-detection loss); the study and its
+numbers are in `evaluation/fusion_uncertainty/`.
+
 ## The viewer (web/app.js, function `viewer`)
 
 NiiVue 0.44.0 from jsdelivr. ITK-SNAP arrangement: 2×2 grid (axial, coronal,
 sagittal, 3D), one crosshair. Airway loads first, alone, in red. Overlay
 radios: Airway / Lobar / Segmental / Branches (discrete label LUTs via
-`NVImage.setColormapLabel`). Window presets, right-drag W/L, opacity
+`NVImage.setColormapLabel`) / Confidence (continuous, see "Confidence map"). Window presets, right-drag W/L, opacity
 sliders, centreline toggle, radiological convention, orientation cube,
 screenshot (`saveScene`). Readout bar shows voxel, mm, HU and the branch
 under the cursor. Layout buttons: 2×2 / Axial / Coronal / Sagittal / 3D.

@@ -30,6 +30,12 @@ STAGES_DIR = os.path.join(HERE, "worker", "stages")
 # Seeded component selection, 6-connectivity, the rule the paper's numbers
 # were measured with. Do not change without re-reading the paper's Section 3.
 CONNECTIVITY = 6
+# How the three masks become one. "union" is the paper's recipe above and the
+# default; "topofuse" additionally prunes improbable leaf branches and trims
+# the boundary by the per-voxel confidence (worker/stages/topofuse.py, with
+# AIRWAY_TOPOFUSE_TAU / _KAPPA / _CORE as tunables). Either way the confidence
+# map (confidence.nii.gz) is written.
+FUSION = os.environ.get("AIRWAY_FUSION", "union")
 
 # Run MEDPSeg and TfeNet on the GPU at the same time. TfeNet peaks near 11 GB
 # and MEDPSeg near 5 GB, which fits a 24 GB card with room to spare. Set to 0

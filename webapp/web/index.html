@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Airway segmentation and branch labelling</title>
-<link rel="stylesheet" href="/static/app.css?v=16">
+<link rel="stylesheet" href="/static/app.css?v=17">
 </head>
 <body>
 <div class="wrap">
@@ -50,18 +50,20 @@
 
   <div class="card">
     <h2>What you get back</h2>
-    <p>The fused airway mask, the lobar and segmental label maps, the branch instances and
-      the centreline, all as NIfTI in the orientation of the scan you uploaded, plus an
+    <p>The fused airway mask, the lobar and segmental label maps, the branch instances, the
+      centreline and a per-voxel confidence map, all as NIfTI in the orientation of the scan you uploaded, plus an
       in-browser 3D view, per-branch morphometry with percentiles for age, sanity checks on the
       result, and a bundle that opens in ITK-SNAP for correction. Files are kept on the server
       only as long as needed to serve them.</p>
   </div>
 
   <footer>Method: union of AirMorph, MEDPSeg and TfeNet with seeded component selection, then
-    a graph transformer for branch naming. Research prototype.</footer>
+    a graph transformer for branch naming. Each voxel carries a confidence: the probability that it is
+    airway given which of the three models (and how many of AirMorph's five networks) marked it,
+    calibrated on the ATM'22 validation set. Research prototype.</footer>
   <footer class="credit">Airway segmentation and branch labelling · QUIN Lab, Boston Children's Hospital · built by Hüseyin Umut Işık</footer>
 </div>
-<script src="/static/app.js?v=16"></script>
+<script src="/static/app.js?v=17"></script>
 <script>AirwayApp.upload();</script>
 </body>
 </html>

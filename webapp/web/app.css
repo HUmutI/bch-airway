@@ -103,6 +103,12 @@ pre.log { background: #1f1d1a; color: #d8d2c8; font: 12px/1.5 var(--mono); paddi
 .legend span i { display: inline-block; width: 11px; height: 11px; border-radius: 2px; flex: none; }
 .legend span input { margin-left: auto; accent-color: var(--accent); }
 .legend .more { color: var(--muted); font-size: 12px; }
+.layers label.radio i.conf, .legend .ramp { background: linear-gradient(90deg, rgb(214,39,40), rgb(255,200,0), rgb(44,160,44)); }
+.legend .ramp { height: 10px; border-radius: 3px; margin: 2px 0 4px; }
+.legend .ramp-lab b { display: inline-block; min-width: 42px; font-weight: 600; }
+.legend .ramp-stat { color: var(--text); font-size: 12px; margin-top: 4px; }
+table.m .conf { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
+table.m .conf i { display: inline-block; width: 9px; height: 9px; border-radius: 2px; }
 .downloads { display: flex; flex-wrap: wrap; gap: 8px; }
 .downloads a { display: inline-block; border: 1px solid var(--line); border-radius: 6px;
   padding: 7px 12px; font-size: 13px; color: var(--text); text-decoration: none; background: var(--surface); }
