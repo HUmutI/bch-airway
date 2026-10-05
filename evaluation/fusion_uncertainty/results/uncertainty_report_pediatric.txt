@@ -1,0 +1,65 @@
+
+## pediatric (9 cases)
+
+voxel [model]: AUROC_fp=0.9309, mask_precision_%=99.87, fraction_mask_fullagree_%=72.5, precision_fullagree_%=100.0, FP_in_lowest_5%=52.8, FP_in_lowest_10%=83.6, FP_in_lowest_20%=93.3, AUROC_fp_percase_mean=0.8565, AUROC_fp_percase_sd=0.1919
+
+reliability (model scheme):
+ confidence  voxels  share_of_mask_%  precision_%  share_of_all_FP_%
+      0.200   27233             1.64        98.99              12.68
+      0.267   10797             0.65        99.25               3.75
+      0.333   43829             2.64        98.26              35.31
+      0.400   15189             0.91        98.08              13.47
+      0.467   23597             1.42        99.11               9.67
+      0.533   30577             1.84        99.54               6.57
+      0.600   29750             1.79        99.69               4.26
+      0.667  139363             8.39        99.95               2.92
+      0.733    3395             0.20        98.14               2.92
+      0.800   10636             0.64        99.57               2.13
+      0.867   29078             1.75        99.71               3.84
+      0.933   93224             5.61        99.96               1.62
+      1.000 1205171            72.52       100.00               0.88
+voxel [seven]: AUROC_fp=0.9132, mask_precision_%=99.87, fraction_mask_fullagree_%=72.5, precision_fullagree_%=100.0, FP_in_lowest_5%=40.3, FP_in_lowest_10%=52.6, FP_in_lowest_20%=96.5, AUROC_fp_percase_mean=0.8293, AUROC_fp_percase_sd=0.1845
+voxel [calibrated, table from val]: AUROC_fp=0.9169, ECE=11.18, AUROC_fp_percase_mean=nan, AUROC_fp_percase_sd=nan, mask_precision_%=99.87, FP_in_lowest_5%=53.0, FP_in_lowest_10%=77.6, FP_in_lowest_20%=94.8
+
+reliability of validation probabilities on this split:
+ airmorph_votes  medpseg  tfenet  voxels  predicted_%  observed_%
+              1        1       0   10332         12.5        98.6
+              3        0       0   27233         17.3        99.0
+              2        1       0   13570         20.8        99.1
+              0        0       1    3512         22.7        90.8
+              2        0       1   10027         27.7        99.1
+              1        0       1    4857         28.2        96.9
+              3        1       0   15532         31.8        99.7
+              3        0       1   15045         33.2        99.4
+              4        0       0   10797         34.3        99.2
+              4        0       1   16950         46.2        99.6
+              4        1       0   12800         51.3        99.8
+              5        0       0    3924         52.6        99.7
+              0        1       0   36393         53.9        98.8
+              1        1       1    3395         58.1        98.1
+              5        0       1   23563         68.8        99.9
+              5        1       0    9944         70.4        99.9
+              4        1       1   93224         73.3       100.0
+              2        1       1   10636         82.3        99.6
+              3        1       1   29078         83.6        99.7
+              5        1       1 1205171         97.9       100.0
+              0        1       1  105856         98.3       100.0
+
+branch false-rate by confidence band:
+               branches  false_branches  false_rate_pct  fp_voxels
+conf_skel                                                         
+<=1/3                43               3             7.0      220.0
+1/3-1/2             133               5             3.8      335.0
+1/2-2/3             226               0             0.0        0.0
+2/3-0.9             535               1             0.2       78.0
+0.9-<1              392               0             0.0        0.0
+1 (all agree)       758               0             0.0        0.0
+
+branch false-rate by number of supporting models:
+          branches  false_rate_pct
+n_models                          
+1              189             4.2
+2              348             0.3
+3             1550             0.0
+
+branch AUROC pooled: {'conf_skel': 0.9439, 'logit': 0.9637}; per-case mean: {'conf_skel': 0.9432, 'conf_vox': 0.9276, 'logit': 0.9602}

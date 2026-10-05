@@ -84,6 +84,25 @@ LABEL = {"airmorph_raw": "AirMorph", "medpseg_raw": "MEDPSeg", "tfenet_raw": "Tf
          "or_all3_lcc": "All three"}
 
 
+def _vote2of3_seeded(m):
+    v = (m["airmorph"].astype(np.uint8) + m["medpseg"].astype(np.uint8)
+         + m["tfenet"].astype(np.uint8)) >= 2
+    return keep_seeded_component(v.astype(np.uint8), m["airmorph"])
+
+
+OPTIONAL = {"vote2of3_seeded": (_vote2of3_seeded, "Majority vote, selected")}
+
+
+def register_mask_dir(name, directory, label=None):
+    """Score masks produced elsewhere (e.g. evaluation/fusion_uncertainty):
+    ATM26_<case>.npz with key "mask" in `directory`."""
+    def load(m, _d=directory):
+        with np.load(os.path.join(_d, f"ATM26_{m['_case']}.npz")) as p:
+            return p["mask"].astype(np.uint8)
+    STRATEGIES[name] = load
+    LABEL[name] = label or name
+
+
 # ----------------------------------------------------------------- fusion (verbatim)
 
 def keep_largest_component(mask):
@@ -256,6 +275,7 @@ def run_case(case):
             masks[name] = payload["raw"].astype(np.uint8)
         if masks[name].shape != label.shape:
             raise ValueError(f"{case} {name}: {masks[name].shape} != {label.shape}")
+    masks["_case"] = case
 
     # GT-side quantities are strategy independent
     flat_gen = gen_map.ravel()
@@ -452,14 +472,27 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--cases", nargs="*", default=None)
     ap.add_argument("--workers", type=int, default=10)
-    ap.add_argument("--strategies", nargs="*", default=list(STRATEGIES), choices=list(STRATEGIES))
+    ap.add_argument("--strategies", nargs="*", default=None,
+                    help="subset of the built-in strategies (default: the four of the paper)")
+    ap.add_argument("--optional", nargs="*", default=[], choices=list(OPTIONAL),
+                    help="extra built-in strategies to add")
+    ap.add_argument("--extra", nargs="*", default=[], metavar="NAME=DIR[=LABEL]",
+                    help="score stored masks: ATM26_<case>.npz key 'mask' in DIR")
     ap.add_argument("--out", default=os.path.join(HERE, "per_generation_atm26_members.csv"))
     ap.add_argument("--summary", default=os.path.join(HERE, "per_generation_atm26_members_summary.csv"))
     ap.add_argument("--tex", default=os.path.join(HERE, "per_generation_atm26_members.tex"))
     ap.add_argument("--diag", default=os.path.join(HERE, "per_generation_atm26_members_diagnostics.csv"))
     args = ap.parse_args()
     global strategies
-    strategies = [k for k in STRATEGIES if k in args.strategies]
+    wanted = args.strategies if args.strategies is not None else list(STRATEGIES)
+    for k in args.optional:
+        STRATEGIES[k], LABEL[k] = OPTIONAL[k]
+        wanted.append(k)
+    for spec in args.extra:
+        parts = spec.split("=")
+        register_mask_dir(parts[0], parts[1], parts[2] if len(parts) > 2 else None)
+        wanted.append(parts[0])
+    strategies = [k for k in STRATEGIES if k in wanted]
 
     cases = args.cases or sorted(d for d in os.listdir(CACHE)
                                  if os.path.isdir(os.path.join(CACHE, d)))

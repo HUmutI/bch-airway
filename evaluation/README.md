@@ -58,6 +58,7 @@ a whole-tree mean flatters the method.
 |---|---|
 | `benchmark_adult/` | scoring on the ATM'22 test split, whole tree and per generation, and the tables the paper reports |
 | `rule_sweep/` | the 51 combination rules compared on the validation split, and the summariser that ranks them |
+| `fusion_uncertainty/` | the vote-pattern confidence map, branch confidence and the uncertainty-aware refinement of the union, with its validation sweep and the test / pediatric evaluation (`RESULTS.md`) |
 | `benchmark_pediatric/` | the same comparison against expert-annotated pediatric volumes, and the surface distances |
 | `airmorph_reconstruction/` | our reconstruction of the labelling training procedure, plus the inference and fusion drivers |
 | `figures/` | the render scripts for the figures in the paper |
