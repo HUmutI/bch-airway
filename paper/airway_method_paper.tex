@@ -485,7 +485,7 @@ strategy adopted for the rest of the paper is the union of all three members,
 for the reason given in the text. HD95 is the 95th
 percentile of the surface distance in millimetres, which the plain Hausdorff
 distance cannot replace here because a single voxel sets it. Best value per
-column in bold, second best underlined.}
+column in bold, second best underlined. ``All three, refined'' is the union after the uncertainty-aware refinement of Section~\ref{sec:confidence}, with the operating point chosen on the validation split.}
 \label{tab:variants}
 \setlength{\tabcolsep}{3.5pt}\footnotesize
 \begin{tabular}{@{}lccccccc@{}}
@@ -500,6 +500,7 @@ AirMorph $\cup$ MEDPSeg & 93.15 & 90.32 & 94.44 & 91.29 & \underline{98.06} & 88
 AirMorph $\cup$ TfeNet & 93.29 & \textbf{90.81} & 94.80 & \underline{91.61} & 97.43 & 89.83 & 1.75 \\
 MEDPSeg $\cup$ TfeNet & \underline{94.08} & 90.06 & 88.96 & 81.91 & 95.96 & 92.55 & \underline{1.64} \\
 All three members & 93.06 & 90.24 & \textbf{95.22} & \textbf{92.31} & \textbf{98.23} & 88.71 & 1.81 \\
+All three, refined ($\kappa=0.4$) & 94.04 & 90.18 & 94.60 & 91.33 & 97.09 & 91.46 & 1.75 \\
 \midrule
 Majority vote & 94.04 & 89.63 & 90.94 & 83.19 & 95.51 & \underline{93.07} & 1.82 \\
 Majority vote, selected & \textbf{94.38} & \underline{90.48} & 87.84 & 80.35 & 95.00 & \textbf{94.04} & \textbf{1.43} \\
@@ -933,7 +934,7 @@ mean does.
 \caption{Each model alone and every combination of them on the nine annotated
 pediatric volumes, seeded selection, mean over volumes. HD95 is the 95th
 percentile of the surface distance in millimetres. Best value per column in
-bold, second best underlined.}
+bold, second best underlined. ``All three, refined'' is the union after the uncertainty-aware refinement of Section~\ref{sec:confidence}, with the adult operating point.}
 \label{tab:ped}
 \setlength{\tabcolsep}{3.5pt}\footnotesize
 \begin{tabular}{@{}lccccccc@{}}
@@ -945,9 +946,10 @@ MEDPSeg & 80.40 & 74.51 & 76.60 & 53.17 & 83.20 & 80.83 & 44.86 \\
 TfeNet & 49.95 & 26.37 & 83.58 & 66.85 & 83.31 & 38.05 & 118.81 \\
 \midrule
 AirMorph $\cup$ MEDPSeg & \underline{94.01} & 95.39 & 89.46 & 77.01 & \underline{88.85} & \underline{99.90} & \underline{0.54} \\
-AirMorph $\cup$ TfeNet & 93.06 & \underline{95.61} & \underline{90.58} & \underline{80.36} & 87.20 & 99.87 & 0.55 \\
+AirMorph $\cup$ TfeNet & 93.06 & 95.61 & 90.58 & \underline{80.36} & 87.20 & 99.87 & 0.55 \\
 MEDPSeg $\cup$ TfeNet & 93.39 & 94.57 & 87.36 & 74.10 & 87.77 & 99.87 & \underline{0.54} \\
 All three members & \textbf{94.74} & \textbf{97.06} & \textbf{93.91} & \textbf{86.40} & \textbf{90.21} & 99.85 & \textbf{0.53} \\
+All three, refined ($\kappa=0.4$) & 92.67 & \underline{96.87} & \underline{92.01} & 80.16 & 86.54 & 99.86 & 0.55 \\
 \midrule
 Majority vote & 88.15 & 87.54 & 82.50 & 60.78 & 84.03 & 93.64 & 13.02 \\
 Majority vote, selected & 90.93 & 91.49 & 80.17 & 59.26 & 83.48 & \textbf{99.95} & 0.85 \\
