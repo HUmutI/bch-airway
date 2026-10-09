@@ -60,24 +60,23 @@
   {always produced};
 \node[note, left=2mm of pat, text width=14mm, align=right, text=conline] {\textbf{confidence}};
 
-% ---- row 3: branch confidence and the refinement
-\node[ref, text width=24mm] (bc) at ($(tab)+(18mm,-21mm)$)
-  {branch confidence\\[-1pt]\tiny mean along the centreline};
-\node[ref, text width=26mm] (rc) at ($(bc)+(32mm,0)$)
-  {branch-relative consensus\\[-1pt]\tiny keep voxel if $c \geq \kappa\, c_{\text{centreline}}$};
-\node[io, text width=14mm] (out) at ($(rc)+(25mm,0)$) {refined\\mask};
-\draw[fl] (bc) -- (rc); \draw[fl] (rc) -- (out);
-\node[note, below=1.0mm of rc, text width=40mm]
-  {core within $\max(0.5\,r,\,1.5$ vox$)$ always kept;\\$\kappa=0.4$ chosen on validation;\\optional, off for pediatric scans};
-\node[note, left=2mm of bc, text width=22mm, align=right, text=refline]
+% ---- row 3: the refinement, one rule per generation band of the branch tree
+\node[ref, text width=50mm] (rc) at ($(tree)+(0,-42mm)$)
+  {generation-banded consensus\\[1pt]
+   {\tiny\mbox{generations 1--3: keep if $c \geq 0.4$}}\\[-1pt]
+   {\tiny\mbox{generations 4--6: keep if $\geq$\,5 of 7 predictors vote}}\\[-1pt]
+   {\tiny\mbox{generation 7 onward: keep if $c \geq 0.2$}}};
+\node[io, text width=14mm] (out) at ($(rc)+(41mm,0)$) {refined\\mask};
+\draw[fl] (rc) -- (out);
+\node[note, below=1.0mm of rc, text width=48mm]
+  {1-voxel centreline core always kept, seeded component last;\\bands and rules chosen on validation;\\optional, off for pediatric scans};
+\node[note, left=2mm of rc, text width=22mm, align=right, text=refline]
   {\textbf{uncertainty-aware\\fusion}};
 
-% the tree enters from above through the gap between the table and the map;
-% the map feeds both the branch confidence and the consensus
+% the tree supplies each voxel's generation from above, through the gap
+% between the table and the map; the map supplies c and the vote count
 \coordinate (m1) at ($(map.south)+(-3mm,0)$);
-\coordinate (m2) at ($(map.east)+(4mm,0)$);
-\draw[fl] (tree.south) -- (tree.south |- bc.north);
-\draw[fl] (m1) -- (m1 |- bc.north);
-\draw[fl] (m2) -- (m2 |- rc.north);
+\draw[fl] (tree.south) -- (tree.south |- rc.north);
+\draw[fl] (m1) -- (m1 |- rc.north);
 \end{tikzpicture}
 \end{document}

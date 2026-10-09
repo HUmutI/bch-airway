@@ -6,15 +6,17 @@
     seven predictors agree);
 (b) the same surface coloured by the reference: blue where the voxel is
     airway, red where it is a false positive;
-(c) the refined mask (branch-relative consensus, kappa 0.4), green as the
-    selected component is drawn elsewhere in the paper;
+(c) the refined mask (generation-specific consensus: G1-3 confidence >= 0.4,
+    G4-6 >= 5 of 7 predictors, G7+ confidence >= 0.2, 1-voxel core kept),
+    green as the selected component is drawn elsewhere in the paper;
 (d) the reference annotation, grey.
 Dice against the reference is printed under (a)/(b) and (c). Rendering is the
 same depth-shaded raycast as the other figures (airway_surface_render), on one
 shared crop and one isotropic grid per row.
 
 Reads the study cache (fusion_uncertainty_run/cache/<split>/<case>/volumes.npz)
-and the refined masks (fusion_uncertainty_run/masks/topofuse/<split>/).
+and the refined masks
+(fusion_uncertainty_run/ablation/generation_specific/masks/<split>/).
 
     AIRWAY_ROOT=/fileserver/external/quin/ege python fig_confidence_panels.py
 """
@@ -35,6 +37,7 @@ import common
 ROOT = os.environ.get("AIRWAY_ROOT", "/fileserver/external/quin/ege")
 STUDY = os.path.join(ROOT, "fusion_uncertainty_run")
 OUT = os.environ.get("FIG_OUT", os.path.join(ROOT, "paper", "figures", "08_confidence_panels"))
+REFINED = os.path.join(STUDY, "ablation", "generation_specific", "masks")
 CASES = [("test", "ATM_078", 0.5, "adult, ATM'22 test"), ("pediatric", "sub-0012_acc-0295", 0.3, "infant, 0.9 years")]
 MARGIN_MM = 4.0
 RAMP = LinearSegmentedColormap.from_list("conf", [(0, "#d62728"), (0.5, "#ffc800"), (1, "#2ca02c")])
@@ -93,7 +96,7 @@ def panels_for(split, cid, render_mm):
     table = common.pattern_table("val")
     conf = common.confidence_from_pattern(c["pattern"], "calibrated", table)
     M, gt = c["M"], c["gt"].astype(bool)
-    R = np.load(os.path.join(STUDY, "masks", "topofuse", split, f"ATM26_{cid}.npz"))["mask"].astype(bool)
+    R = np.load(os.path.join(REFINED, split, f"ATM26_{cid}.npz"))["mask"].astype(bool)
     spacing = np.asarray(c["spacing"], float)[::-1]           # (z,y,x) -> (x,y,z)
     M, gt, R, conf = to_lps(M), to_lps(gt), to_lps(R), to_lps(conf)
     sl = crop_box(M | gt, spacing)
@@ -131,7 +134,7 @@ def content_box(row, m=0.02):
 
 
 def main():
-    cache = OUT + "_panels.npz"
+    cache = OUT + "_genspec_panels.npz"
     if os.path.exists(cache):
         z = np.load(cache, allow_pickle=True)
         rows = [[z[f"p{r}{c}"] for c in range(4)] for r in range(len(CASES))]

@@ -331,10 +331,8 @@ measurably, and is off by default.
 Figure~\ref{fig:arch} is unchanged; the seven predictors behind it mark every
 fused voxel with one of 24 vote patterns, the pattern's precision on the
 validation split is the voxel's confidence, and the confidence is shown as it
-is, summarised per branch, and optionally used to trim the mask. The trimming
-block shows the earlier branch-relative rule. The adopted rule keeps the same
-inputs and protected core and replaces the threshold by one rule per
-generation band (Section~\ref{sec:confidence}).}
+is, summarised per branch, and optionally used to trim the mask with one rule
+per generation band of the branch tree (Section~\ref{sec:confidence}).}
 \label{fig:unc-arch}
 \end{figure}
 
@@ -822,10 +820,9 @@ coloured by the calibrated confidence, red where one model stands alone and
 green where all seven predictors agree. (b,\,f) The same surface coloured by
 the reference, blue where the voxel is airway and red where it is a false
 positive: the red of (b) sits where (a) is red or orange. (c,\,g) The mask
-after the earlier branch-relative trim ($\kappa=0.4$, Table~\ref{tab:ablation}),
-which the generation-specific rule replaced. (d,\,h) The reference. In the adult the union carries
-18.3 per cent false-positive voxels, mostly a thin shell on true branches, and
-the refinement removes a third of them; in the infant the reference is wider
+after the generation-specific refinement. (d,\,h) The reference. In the adult
+the union carries 18.3 per cent false-positive voxels, mostly a thin shell on
+true branches, and the refinement removes two fifths of them; in the infant the reference is wider
 than every member, the union is 99.2 per cent precise, and the refinement can
 only lose. Dice against the reference under each panel.}
 \label{fig:confidence}
@@ -985,11 +982,10 @@ Supported by three & 8\,220 & & 5.6 & 1\,550 & & 0.0 \\
 \caption{Accuracy against completeness for every fusion rule on the test
 split: DSC against branch detection (left) and tree length (right) for the
 51 voxel-level rules of the validation sweep (grey), the three reference
-strategies, and the earlier branch-relative trim as $\kappa$ runs from 0 (the
-union) to 0.9, with the protected core at 1.5 voxels (solid) and 1 voxel (dashed).
-Rules below the window are omitted. The adopted generation-specific rule
-lies at DSC 94.18 and branch detection 91.17, just right of and below
-the $\kappa=0.4$ point.}
+strategies, the earlier branch-relative trim as $\kappa$ runs from 0 (the
+union) to 0.9, with the protected core at 1.5 voxels (solid) and 1 voxel
+(dashed), and the adopted generation-specific rule (star). Rules below the
+window are omitted.}
 \label{fig:frontier}
 \end{figure}
 
