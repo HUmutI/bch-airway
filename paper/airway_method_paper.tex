@@ -776,8 +776,9 @@ Trimming by confidence moves the union to a point no voxel-level rule reached
 (Figure~\ref{fig:frontier}). With the generation-specific rule, DSC on the
 test split rises from 93.06 to 94.18 and precision from 88.71 to 91.66,
 better in 28 of 30 volumes, while branch detection falls from 92.31 to 91.17
-and tree length from 95.22 to 94.52. The best of the 51 earlier rules at DSC
-94.0 detected 86 per cent of branches. The branch-detection loss of 1.14
+and tree length from 95.22 to 94.52. Of the 51 earlier rules the closest,
+a weighted vote, reached DSC 94.00 at 90.22 per cent branch detection, and
+every rule with higher DSC detected at most 86.10 per cent. The branch-detection loss of 1.14
 points slightly exceeds the one-point budget that was met on validation, at
 0.98. Per generation the refined mask has the best DSC of all strategies at
 generations 1 to 4 and stays within 1.5 points of the union's branch
