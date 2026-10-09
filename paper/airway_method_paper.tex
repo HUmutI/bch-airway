@@ -296,19 +296,33 @@ without AirMorph is 98 per cent airway. It is agreement \emph{between} models
 that carries the information.
 
 The map also allows the mask to be tidied without giving up the completeness
-the union was adopted for. The fused mask is skeletonised and cut into
-branches, every voxel is assigned to its nearest branch, and a voxel is kept
-when its confidence is at least a fraction $\kappa$ of the confidence along
-its branch's centreline; the core within $\max(0.5\,r, 1.5\text{ voxels})$ of
-the centreline is always kept and the seeded-component rule is applied once
-more. A branch all three models see is trimmed towards their consensus; a
-distal branch that one model found keeps every voxel, because nothing in it
-has more support than its own centreline. The branch tree also admits
-topology-preserving pruning of improbable leaves, scored by a logistic
-regression on branch evidence and geometry fitted on the validation
-branches; it removed false branches but changed no metric measurably, and
-is off by default. $\kappa$ was chosen on validation as the largest DSC gain
-with at most one point of branch-detection loss, giving $\kappa=0.4$.
+the union was adopted for, and how much can be trimmed depends on depth. The
+fused mask is skeletonised and cut into branches, every voxel takes the
+generation of its nearest branch, and the generations are grouped into three
+bands with one rule each. In generations 1 to 3 a voxel is kept when its
+calibrated confidence is at least 0.4, in generations 4 to 6 when at least
+five of the seven predictors mark it, and from generation 7 onward when its
+confidence is at least 0.2. In every band the core within one voxel of the
+centreline is always kept, so that trimming a proximal band cannot disconnect
+the branches beyond it, and the seeded-component rule is applied once more at
+the end. The rules were chosen on the validation split by a greedy search over
+15 candidate rules per band (unions and majorities of the three models, vote
+thresholds over the seven predictors and confidence thresholds), for the
+largest DSC with at most one point of branch-detection loss against the union.
+The search settles on the same shape for finer bandings. Proximally the
+threshold trims the boundary shell of branches every model sees, in the middle
+generations the stricter vote removes the halo a single model adds around
+segmental bronchi, and distally the weak rule drops only the two patterns
+below 20 per cent, a bare three-of-five AirMorph vote and a single AirMorph
+member with MEDPSeg. Any stronger distal rule breaks the branch-detection
+budget. This rule replaced an earlier branch-relative trim, which kept a voxel
+when its confidence was at least a fraction $\kappa=0.4$ of its branch's
+centreline confidence, after it and nine other fusion strategies were compared under a
+replacement rule fixed in advance (Section~\ref{sec:res-confidence}). The
+branch tree also admits topology-preserving pruning of improbable leaves,
+scored by a logistic regression on branch evidence and geometry fitted on the
+validation branches. It removed false branches but changed no metric
+measurably, and is off by default.
 
 \begin{figure}[tbp]
 \centering
@@ -317,8 +331,10 @@ with at most one point of branch-detection loss, giving $\kappa=0.4$.
 Figure~\ref{fig:arch} is unchanged; the seven predictors behind it mark every
 fused voxel with one of 24 vote patterns, the pattern's precision on the
 validation split is the voxel's confidence, and the confidence is shown as it
-is, summarised per branch, and optionally used to trim each branch's boundary
-relative to the confidence of its own centreline.}
+is, summarised per branch, and optionally used to trim the mask. The trimming
+block shows the earlier branch-relative rule. The adopted rule keeps the same
+inputs and protected core and replaces the threshold by one rule per
+generation band (Section~\ref{sec:confidence}).}
 \label{fig:unc-arch}
 \end{figure}
 
@@ -485,7 +501,7 @@ strategy adopted for the rest of the paper is the union of all three members,
 for the reason given in the text. HD95 is the 95th
 percentile of the surface distance in millimetres, which the plain Hausdorff
 distance cannot replace here because a single voxel sets it. Best value per
-column in bold, second best underlined. ``All three, refined'' is the union after the uncertainty-aware refinement of Section~\ref{sec:confidence}, with the operating point chosen on the validation split.}
+column in bold, second best underlined. ``All three, generation-specific'' is the union after the uncertainty-aware refinement of Section~\ref{sec:confidence}, with the band rules chosen on the validation split.}
 \label{tab:variants}
 \setlength{\tabcolsep}{3.5pt}\footnotesize
 \begin{tabular}{@{}lccccccc@{}}
@@ -498,9 +514,9 @@ TfeNet & 65.23 & 51.03 & 86.54 & 75.65 & 91.44 & 53.68 & 133.70 \\
 \midrule
 AirMorph $\cup$ MEDPSeg & 93.15 & 90.32 & 94.44 & 91.29 & \underline{98.06} & 88.99 & 1.66 \\
 AirMorph $\cup$ TfeNet & 93.29 & \textbf{90.81} & 94.80 & \underline{91.61} & 97.43 & 89.83 & 1.75 \\
-MEDPSeg $\cup$ TfeNet & \underline{94.08} & 90.06 & 88.96 & 81.91 & 95.96 & 92.55 & \underline{1.64} \\
+MEDPSeg $\cup$ TfeNet & 94.08 & 90.06 & 88.96 & 81.91 & 95.96 & 92.55 & \underline{1.64} \\
 All three members & 93.06 & 90.24 & \textbf{95.22} & \textbf{92.31} & \textbf{98.23} & 88.71 & 1.81 \\
-All three, refined ($\kappa=0.4$) & 94.04 & 90.18 & 94.60 & 91.33 & 97.09 & 91.46 & 1.75 \\
+All three, generation-specific & \underline{94.18} & 90.26 & 94.52 & 91.17 & 97.15 & 91.66 & 1.70 \\
 \midrule
 Majority vote & 94.04 & 89.63 & 90.94 & 83.19 & 95.51 & \underline{93.07} & 1.82 \\
 Majority vote, selected & \textbf{94.38} & \underline{90.48} & 87.84 & 80.35 & 95.00 & \textbf{94.04} & \textbf{1.43} \\
@@ -564,9 +580,9 @@ trade the union makes and the reason it was adopted: it recovers more of the
 tree than any member at every depth, and pays for it in boundary precision
 rather than in missed branches. The two
 added rows show what the confidence of Section~\ref{sec:confidence} buys:
-the refined union has the best DSC of all six strategies at generations 1 to
-4 and stays within 1.6 points of the union's branch detection at every
-generation, whereas the majority vote, which has the best whole-tree DSC,
+the generation-specific refinement has the best DSC of all six strategies at
+generations 1 to 4 and stays within 1.5 points of the union's branch detection
+at every generation, whereas the majority vote, which has the best whole-tree DSC,
 loses 13 to 16 points of branch detection from generation 7 onward.
 
 \begin{figure}[tbp]
@@ -591,7 +607,7 @@ per generation here.}
 \centering
 \caption{Accuracy by airway generation on the benchmark test set, for each
 member alone, the adopted union, the majority vote with seeded selection and
-the proposed uncertainty-aware refinement of the union
+the proposed generation-specific refinement of the union
 (Section~\ref{sec:confidence}), over the volumes containing each generation
 (mean $\pm$ SD). The metrics are those of Table~\ref{tab:variants}
 restricted to the branches of one generation: TLD is the fraction of that
@@ -620,70 +636,70 @@ Gen & Strategy & DSC & TLD & BND & Sensitivity & Precision \\
  & TfeNet & $97.55 \pm 1.12$ & $\mathbf{100.00} \pm 0.00$ & $\mathbf{100.00} \pm 0.00$ & $95.81 \pm 2.43$ & $\mathbf{99.39} \pm 0.96$ \\
  & All three & $97.92 \pm 1.32$ & $\mathbf{100.00} \pm 0.00$ & $\mathbf{100.00} \pm 0.00$ & $\mathbf{99.44} \pm 0.98$ & $96.49 \pm 2.58$ \\
  & Majority vote & $98.36 \pm 1.03$ & $\mathbf{100.00} \pm 0.00$ & $\mathbf{100.00} \pm 0.00$ & $98.72 \pm 1.40$ & $98.05 \pm 2.10$ \\
- & Proposed & $\mathbf{98.37} \pm 1.01$ & $\mathbf{100.00} \pm 0.00$ & $\mathbf{100.00} \pm 0.00$ & $98.66 \pm 1.45$ & $98.12 \pm 2.05$ \\
+ & Proposed & $\mathbf{98.37} \pm 1.01$ & $\mathbf{100.00} \pm 0.00$ & $\mathbf{100.00} \pm 0.00$ & $98.66 \pm 1.46$ & $98.12 \pm 2.05$ \\
 \addlinespace[2pt]
 3 & AirMorph & $97.22 \pm 2.78$ & $\mathbf{100.00} \pm 0.00$ & $\mathbf{100.00} \pm 0.00$ & $98.76 \pm 1.81$ & $95.90 \pm 5.17$ \\
  & MEDPSeg & $96.77 \pm 2.76$ & $99.83 \pm 0.72$ & $99.52 \pm 2.61$ & $97.95 \pm 2.24$ & $95.84 \pm 5.31$ \\
  & TfeNet & $96.37 \pm 2.19$ & $\mathbf{100.00} \pm 0.00$ & $\mathbf{100.00} \pm 0.00$ & $94.46 \pm 3.97$ & $\mathbf{98.57} \pm 3.53$ \\
  & All three & $96.80 \pm 3.08$ & $\mathbf{100.00} \pm 0.00$ & $\mathbf{100.00} \pm 0.00$ & $\mathbf{98.98} \pm 1.72$ & $94.94 \pm 5.67$ \\
- & Majority vote & $\mathbf{97.28} \pm 2.47$ & $\mathbf{100.00} \pm 0.00$ & $\mathbf{100.00} \pm 0.00$ & $97.91 \pm 2.35$ & $96.85 \pm 4.84$ \\
- & Proposed & $97.25 \pm 2.49$ & $\mathbf{100.00} \pm 0.00$ & $\mathbf{100.00} \pm 0.00$ & $97.81 \pm 2.44$ & $96.89 \pm 4.88$ \\
+ & Majority vote & $97.28 \pm 2.47$ & $\mathbf{100.00} \pm 0.00$ & $\mathbf{100.00} \pm 0.00$ & $97.91 \pm 2.35$ & $96.85 \pm 4.84$ \\
+ & Proposed & $\mathbf{97.30} \pm 2.34$ & $\mathbf{100.00} \pm 0.00$ & $\mathbf{100.00} \pm 0.00$ & $97.80 \pm 2.42$ & $96.99 \pm 4.63$ \\
 \addlinespace[2pt]
 4 & AirMorph & $95.01 \pm 4.16$ & $99.71 \pm 0.88$ & $99.03 \pm 3.03$ & $98.33 \pm 2.17$ & $92.20 \pm 7.06$ \\
  & MEDPSeg & $95.09 \pm 3.71$ & $99.28 \pm 1.73$ & $98.89 \pm 3.45$ & $96.46 \pm 3.32$ & $94.16 \pm 6.89$ \\
  & TfeNet & $92.03 \pm 15.59$ & $99.27 \pm 1.63$ & $98.47 \pm 4.16$ & $91.94 \pm 5.29$ & $\mathbf{95.27} \pm 17.10$ \\
  & All three & $94.70 \pm 4.44$ & $\mathbf{99.79} \pm 0.84$ & $\mathbf{99.31} \pm 2.70$ & $\mathbf{98.73} \pm 2.01$ & $91.36 \pm 7.59$ \\
  & Majority vote & $95.61 \pm 3.50$ & $99.58 \pm 1.36$ & $\mathbf{99.31} \pm 2.70$ & $96.67 \pm 3.19$ & $94.94 \pm 6.54$ \\
- & Proposed & $\mathbf{95.72} \pm 3.79$ & $99.69 \pm 0.99$ & $\mathbf{99.31} \pm 2.70$ & $96.93 \pm 3.01$ & $94.92 \pm 6.91$ \\
+ & Proposed & $\mathbf{95.76} \pm 3.89$ & $99.62 \pm 0.97$ & $99.03 \pm 3.03$ & $96.87 \pm 2.96$ & $95.01 \pm 6.85$ \\
 \addlinespace[2pt]
 5 & AirMorph & $90.29 \pm 9.19$ & $98.71 \pm 3.16$ & $98.62 \pm 3.86$ & $97.85 \pm 3.56$ & $84.96 \pm 12.75$ \\
  & MEDPSeg & $91.15 \pm 7.07$ & $96.14 \pm 5.13$ & $95.77 \pm 7.54$ & $93.72 \pm 4.85$ & $89.63 \pm 10.76$ \\
  & TfeNet & $84.78 \pm 16.57$ & $96.38 \pm 3.41$ & $96.35 \pm 5.65$ & $89.81 \pm 5.25$ & $84.05 \pm 23.17$ \\
  & All three & $90.40 \pm 8.05$ & $\mathbf{98.90} \pm 2.81$ & $\mathbf{99.02} \pm 3.66$ & $\mathbf{98.22} \pm 3.27$ & $84.70 \pm 11.80$ \\
  & Majority vote & $\mathbf{92.65} \pm 6.12$ & $97.24 \pm 4.39$ & $97.75 \pm 5.19$ & $95.06 \pm 4.36$ & $\mathbf{91.17} \pm 10.01$ \\
- & Proposed & $92.38 \pm 7.42$ & $98.59 \pm 3.05$ & $\mathbf{99.02} \pm 3.66$ & $96.11 \pm 4.07$ & $89.92 \pm 11.48$ \\
+ & Proposed & $92.53 \pm 7.55$ & $98.41 \pm 3.23$ & $98.83 \pm 3.75$ & $95.93 \pm 4.22$ & $90.38 \pm 11.64$ \\
 \addlinespace[2pt]
 6 & AirMorph & $85.61 \pm 11.26$ & $96.64 \pm 5.40$ & $96.63 \pm 6.34$ & $96.20 \pm 5.57$ & $78.83 \pm 14.57$ \\
  & MEDPSeg & $86.42 \pm 8.43$ & $91.81 \pm 7.06$ & $89.55 \pm 10.94$ & $88.89 \pm 7.64$ & $85.16 \pm 11.48$ \\
  & TfeNet & $69.84 \pm 24.65$ & $92.21 \pm 6.14$ & $89.39 \pm 9.21$ & $87.49 \pm 6.64$ & $64.43 \pm 30.06$ \\
  & All three & $85.38 \pm 9.89$ & $\mathbf{96.68} \pm 3.80$ & $\mathbf{96.80} \pm 3.70$ & $\mathbf{96.51} \pm 4.06$ & $77.89 \pm 13.55$ \\
  & Majority vote & $\mathbf{88.46} \pm 8.51$ & $92.83 \pm 6.91$ & $92.41 \pm 8.01$ & $91.72 \pm 6.72$ & $\mathbf{86.92} \pm 12.72$ \\
- & Proposed & $87.53 \pm 9.40$ & $96.15 \pm 4.02$ & $95.78 \pm 3.97$ & $94.29 \pm 5.30$ & $83.09 \pm 13.46$ \\
+ & Proposed & $87.86 \pm 9.58$ & $95.85 \pm 4.29$ & $95.31 \pm 4.43$ & $94.19 \pm 5.44$ & $83.83 \pm 13.75$ \\
 \addlinespace[2pt]
 7 & AirMorph & $80.21 \pm 11.51$ & $94.14 \pm 7.78$ & $90.32 \pm 13.12$ & $93.80 \pm 8.11$ & $72.02 \pm 15.42$ \\
  & MEDPSeg & $79.50 \pm 12.39$ & $85.04 \pm 10.15$ & $73.32 \pm 17.88$ & $83.52 \pm 11.06$ & $78.27 \pm 15.27$ \\
  & TfeNet & $49.21 \pm 27.69$ & $84.58 \pm 11.33$ & $73.36 \pm 18.71$ & $83.30 \pm 10.05$ & $40.99 \pm 28.56$ \\
  & All three & $80.06 \pm 11.43$ & $\mathbf{94.30} \pm 5.68$ & $\mathbf{91.04} \pm 9.62$ & $\mathbf{94.23} \pm 6.59$ & $71.28 \pm 15.23$ \\
  & Majority vote & $\mathbf{83.19} \pm 9.93$ & $85.18 \pm 11.25$ & $78.22 \pm 16.76$ & $86.29 \pm 10.71$ & $\mathbf{82.68} \pm 14.58$ \\
- & Proposed & $81.95 \pm 10.99$ & $93.58 \pm 5.93$ & $90.18 \pm 10.85$ & $92.38 \pm 7.32$ & $75.40 \pm 15.29$ \\
+ & Proposed & $82.19 \pm 11.08$ & $93.45 \pm 6.23$ & $89.74 \pm 10.99$ & $92.69 \pm 7.55$ & $75.58 \pm 15.17$ \\
 \addlinespace[2pt]
 8 & AirMorph & $80.21 \pm 11.15$ & $93.50 \pm 6.18$ & $88.26 \pm 11.18$ & $93.64 \pm 6.98$ & $71.83 \pm 14.98$ \\
  & MEDPSeg & $79.70 \pm 9.42$ & $82.55 \pm 9.72$ & $66.85 \pm 14.64$ & $81.09 \pm 11.64$ & $79.65 \pm 11.49$ \\
  & TfeNet & $38.55 \pm 18.28$ & $83.11 \pm 10.23$ & $70.23 \pm 18.71$ & $82.17 \pm 8.89$ & $27.52 \pm 17.34$ \\
  & All three & $80.66 \pm 9.74$ & $\mathbf{93.93} \pm 5.36$ & $\mathbf{90.71} \pm 8.61$ & $\mathbf{94.58} \pm 5.23$ & $71.83 \pm 13.85$ \\
  & Majority vote & $\mathbf{83.92} \pm 8.28$ & $84.63 \pm 8.64$ & $74.46 \pm 14.98$ & $86.00 \pm 8.21$ & $\mathbf{83.75} \pm 13.32$ \\
- & Proposed & $82.35 \pm 9.26$ & $93.12 \pm 5.50$ & $89.08 \pm 8.88$ & $92.87 \pm 6.00$ & $75.52 \pm 13.69$ \\
+ & Proposed & $82.75 \pm 9.09$ & $93.25 \pm 5.42$ & $89.52 \pm 8.51$ & $93.25 \pm 5.88$ & $75.88 \pm 13.50$ \\
 \addlinespace[2pt]
 9 & AirMorph & $79.44 \pm 13.51$ & $93.59 \pm 7.73$ & $87.89 \pm 13.65$ & $93.56 \pm 8.31$ & $71.83 \pm 17.71$ \\
  & MEDPSeg & $77.92 \pm 11.98$ & $83.37 \pm 10.07$ & $66.26 \pm 17.81$ & $80.69 \pm 11.66$ & $77.28 \pm 15.02$ \\
  & TfeNet & $36.66 \pm 25.28$ & $82.13 \pm 12.88$ & $66.88 \pm 22.64$ & $80.71 \pm 10.67$ & $29.13 \pm 27.34$ \\
  & All three & $79.37 \pm 11.84$ & $\mathbf{94.06} \pm 6.32$ & $\mathbf{91.03} \pm 11.35$ & $\mathbf{94.39} \pm 6.85$ & $70.70 \pm 16.05$ \\
  & Majority vote & $\mathbf{82.71} \pm 8.34$ & $83.96 \pm 11.28$ & $71.83 \pm 18.97$ & $85.00 \pm 9.82$ & $\mathbf{83.28} \pm 14.32$ \\
- & Proposed & $80.94 \pm 11.38$ & $93.49 \pm 6.48$ & $89.66 \pm 11.78$ & $92.71 \pm 7.44$ & $74.10 \pm 15.96$ \\
+ & Proposed & $81.38 \pm 11.31$ & $93.43 \pm 6.45$ & $90.09 \pm 11.50$ & $93.03 \pm 7.30$ & $74.55 \pm 15.82$ \\
 \addlinespace[2pt]
 10 & AirMorph & $76.20 \pm 18.59$ & $\mathbf{91.35} \pm 12.06$ & $83.81 \pm 20.99$ & $\mathbf{90.50} \pm 13.93$ & $70.27 \pm 21.51$ \\
  & MEDPSeg & $72.06 \pm 17.46$ & $83.06 \pm 8.76$ & $65.78 \pm 19.93$ & $80.46 \pm 11.60$ & $70.14 \pm 22.13$ \\
  & TfeNet & $28.14 \pm 28.79$ & $79.77 \pm 14.21$ & $62.67 \pm 25.38$ & $77.98 \pm 13.64$ & $22.35 \pm 27.51$ \\
  & All three & $74.73 \pm 19.76$ & $90.60 \pm 15.77$ & $\mathbf{84.89} \pm 20.42$ & $89.89 \pm 16.74$ & $69.17 \pm 20.23$ \\
  & Majority vote & $\mathbf{76.68} \pm 19.20$ & $79.53 \pm 18.06$ & $68.77 \pm 26.05$ & $80.40 \pm 17.83$ & $\mathbf{80.46} \pm 20.62$ \\
- & Proposed & $75.79 \pm 20.28$ & $89.56 \pm 16.57$ & $84.21 \pm 20.48$ & $88.30 \pm 17.15$ & $72.13 \pm 20.82$ \\
+ & Proposed & $76.44 \pm 19.96$ & $89.87 \pm 15.80$ & $84.03 \pm 20.51$ & $88.63 \pm 16.86$ & $72.74 \pm 20.73$ \\
 \midrule
 \multicolumn{1}{@{}l}{Whole tree} & AirMorph & $91.64 \pm 5.68$ & $94.95 \pm 4.83$ & $91.27 \pm 8.21$ & $95.04 \pm 5.16$ & $89.12 \pm 8.42$ \\
  & MEDPSeg & $93.29 \pm 3.33$ & $87.50 \pm 6.55$ & $76.10 \pm 12.01$ & $94.78 \pm 2.69$ & $92.02 \pm 5.22$ \\
  & TfeNet & $65.23 \pm 16.86$ & $86.54 \pm 8.33$ & $75.65 \pm 15.14$ & $91.44 \pm 3.49$ & $53.68 \pm 21.43$ \\
  & All three & $93.06 \pm 4.37$ & $\mathbf{95.22} \pm 3.68$ & $\mathbf{92.31} \pm 6.58$ & $\mathbf{98.23} \pm 1.56$ & $88.71 \pm 7.08$ \\
  & Majority vote & $\mathbf{94.38} \pm 3.19$ & $87.84 \pm 7.13$ & $80.35 \pm 12.43$ & $95.00 \pm 2.68$ & $\mathbf{94.04} \pm 5.74$ \\
- & Proposed & $94.04 \pm 3.97$ & $94.60 \pm 3.90$ & $91.33 \pm 7.01$ & $97.09 \pm 1.97$ & $91.46 \pm 6.60$ \\
+ & Proposed & $94.18 \pm 3.95$ & $94.52 \pm 3.98$ & $91.17 \pm 6.92$ & $97.15 \pm 1.93$ & $91.66 \pm 6.56$ \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -758,19 +774,43 @@ absolute values do not: the expert masks are wider than any member, the union
 is 99.85 per cent precise against them, and every pattern is observed near
 100 per cent, so the adult table is pessimistic there by 11 points.
 
-The refinement moves the union to a point no voxel-level rule reached
-(Figure~\ref{fig:frontier}). On the test split DSC rises from 93.06 to 94.04 and precision from 88.71 to 91.46,
-better in 26 of 30 volumes, while branch detection falls from 92.31 to 91.33
-and tree length from 95.22 to 94.60; the best of the 51 earlier rules at DSC
-94.0 detected 86 per cent of branches. Per generation the refined mask has the
-best DSC of all strategies at generations 1 to 4 and stays within 1.6 points
-of the union's branch detection at every generation, where the majority vote
-is 13 to 16 points lower. On the pediatric volumes the same setting loses
-DSC, 94.74 to 92.67, and branch detection, 86.40 to 80.16, in all nine cases:
-with nothing to trim, it removes true wall voxels. The refinement is therefore
-an adult-benchmark result tied to that reference's boundary convention, the
-web application keeps the union as its default and offers the refinement as a
-mode, and the confidence map, which transfers, is the part we rely on.
+Trimming by confidence moves the union to a point no voxel-level rule reached
+(Figure~\ref{fig:frontier}). With the generation-specific rule, DSC on the
+test split rises from 93.06 to 94.18 and precision from 88.71 to 91.66,
+better in 28 of 30 volumes, while branch detection falls from 92.31 to 91.17
+and tree length from 95.22 to 94.52. The best of the 51 earlier rules at DSC
+94.0 detected 86 per cent of branches. The branch-detection loss of 1.14
+points slightly exceeds the one-point budget that was met on validation, at
+0.98. Per generation the refined mask has the best DSC of all strategies at
+generations 1 to 4 and stays within 1.5 points of the union's branch
+detection at every generation, where the majority vote is 13 to 16 points
+lower. HD95 falls from 1.81 to 1.70~mm.
+
+Ten fusion strategies were tuned on validation under the same budget and
+compared with the branch-relative trim ($\kappa=0.4$) under a replacement rule
+fixed before the last two results arrived (Table~\ref{tab:ablation}). A
+strategy replaced it only if its validation DSC exceeded 93.57, its paired
+per-volume DSC on test was higher with Wilcoxon $p<0.05$ and its branch
+detection was not significantly lower, and its pediatric DSC was no more than
+0.5 below 92.67. Only the generation-specific rule passed, with test DSC 0.14
+higher in 25 of 30 volumes ($p<0.001$) and branch detection 0.16 lower
+($p=0.41$). Global member weights reached the same validation DSC, but their
+test gain was not significant ($p=0.17$), nor was that of a small refinement
+CNN ($p=0.058$). The rest fell short on validation. The gain over the
+branch-relative trim comes from generation 5 outward, 0.15 to 0.65 DSC per
+generation from higher precision, and is paid for with up to 0.5 points of
+branch detection in generations 4 to 7. Both rules occupy the same operating
+region, keeping the core and trimming the weakly supported shell, and across
+the strategies tested the branch-detection budget rather than the rule family
+caps test DSC near 94.
+
+On the pediatric volumes the same setting loses DSC, 94.74 to 92.69, in all
+nine cases and branch detection, 86.40 to 80.21. With nothing to trim, it
+removes true wall voxels, exactly as the branch-relative trim does (92.67 and
+80.16). The refinement is therefore an adult-benchmark result tied to that
+reference's boundary convention, the web application keeps the union as its
+default and offers the refinement as a mode, and the confidence map, which
+transfers, is the part we rely on.
 
 \begin{figure}[tbp]
 \centering
@@ -781,8 +821,9 @@ mode, and the confidence map, which transfers, is the part we rely on.
 coloured by the calibrated confidence, red where one model stands alone and
 green where all seven predictors agree. (b,\,f) The same surface coloured by
 the reference, blue where the voxel is airway and red where it is a false
-positive: the red of (b) sits where (a) is red or orange. (c,\,g) The refined
-mask ($\kappa=0.4$). (d,\,h) The reference. In the adult the union carries
+positive: the red of (b) sits where (a) is red or orange. (c,\,g) The mask
+after the earlier branch-relative trim ($\kappa=0.4$, Table~\ref{tab:ablation}),
+which the generation-specific rule replaced. (d,\,h) The reference. In the adult the union carries
 18.3 per cent false-positive voxels, mostly a thin shell on true branches, and
 the refinement removes a third of them; in the infant the reference is wider
 than every member, the union is 99.2 per cent precise, and the refinement can
@@ -804,11 +845,12 @@ member and the adult probabilities are pessimistic.}
 \begin{table}[tbp]
 \centering
 \caption{The confidence map as a detector of error, and the union with and
-without refinement, on the validation split (30 volumes, where the table and
-$\kappa$ were chosen), the test split (30) and the pediatric volumes (9). AUROC: false-positive voxels inside the fused mask; FP$_{20}$: share of
+without the generation-specific refinement, on the validation split (30
+volumes, where the table and the band rules were chosen), the test split (30) and the pediatric volumes (9). AUROC: false-positive voxels inside the fused mask; FP$_{20}$: share of
 all false-positive voxels inside the least confident 20 per cent of the mask;
 ECE: expected calibration error in points, validation probabilities applied
-to the split. Metrics as in Table~\ref{tab:variants}, mean over volumes.}
+to the split. Metrics as in Table~\ref{tab:variants}, mean over volumes.
+clDice of the refinement was not computed on validation.}
 \label{tab:conf}
 \setlength{\tabcolsep}{3.5pt}\footnotesize
 \begin{tabular}{@{}llcccccc@{}}
@@ -816,19 +858,56 @@ to the split. Metrics as in Table~\ref{tab:variants}, mean over volumes.}
 Split & Strategy & DSC & clDice & TLD & BND & Sens. & Prec. \\
 \midrule
 Validation & Union, seeded & 92.45 & 89.19 & 95.80 & 93.23 & 98.34 & 87.44 \\
- & Union, refined ($\kappa=0.4$) & 93.57 & 89.31 & 95.27 & 92.30 & 97.15 & 90.44 \\
+ & Union, generation-specific & 93.72 & -- & 95.26 & 92.25 & 97.24 & 90.63 \\
  & Majority vote, selected & 94.23 & 89.94 & 88.08 & 80.19 & 95.07 & 93.62 \\
  & \multicolumn{7}{l}{Confidence: AUROC 0.90, FP$_{20}$ 86 per cent (the table is fitted here)} \\
 \midrule
 Test & Union, seeded & 93.06 & 90.24 & 95.22 & 92.31 & 98.23 & 88.71 \\
- & Union, refined ($\kappa=0.4$) & 94.04 & 90.18 & 94.60 & 91.33 & 97.09 & 91.46 \\
+ & Union, generation-specific & 94.18 & 90.26 & 94.52 & 91.17 & 97.15 & 91.66 \\
  & Majority vote, selected & 94.38 & 90.48 & 87.84 & 80.35 & 95.00 & 94.04 \\
  & \multicolumn{7}{l}{Confidence: AUROC 0.90, FP$_{20}$ 86 per cent, ECE 0.9} \\
 \midrule
 Pediatric & Union, seeded & 94.74 & 97.06 & 93.91 & 86.40 & 90.21 & 99.85 \\
- & Union, refined ($\kappa=0.4$) & 92.67 & 96.87 & 92.01 & 80.16 & 86.54 & 99.86 \\
+ & Union, generation-specific & 92.69 & 96.82 & 91.70 & 80.21 & 86.58 & 99.86 \\
  & Majority vote, selected & 90.93 & 91.49 & 80.17 & 59.26 & 83.48 & 99.95 \\
  & \multicolumn{7}{l}{Confidence: AUROC 0.92, FP$_{20}$ 95 per cent, ECE 11.2} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}[tbp]
+\centering
+\caption{Fusion strategies tried as replacements for the branch-relative trim,
+each tuned on the validation split for the largest DSC with at most one point
+of branch-detection loss against the union, then run once on test and on the
+pediatric volumes. Learned strategies were trained on validation only (with
+cross-validation inside it). Test columns as in Table~\ref{tab:variants}.
+The mixture of experts gates among the 18 monotone rules of the three masks by
+branch radius, generation, model support and boundary distance, and only its
+most conservative gates met the budget, at best DSC 92.86 on validation, so it
+was not run on test. The
+left-right flip was not run on the pediatric volumes. Bold: the adopted rule.}
+\label{tab:ablation}
+\setlength{\tabcolsep}{2.4pt}\scriptsize
+\begin{tabular}{@{}lccccccccc@{}}
+\toprule
+ & \multicolumn{2}{c}{Validation} & \multicolumn{6}{c}{Test} & Ped. \\
+\cmidrule(lr){2-3}\cmidrule(lr){4-9}\cmidrule(lr){10-10}
+Strategy & DSC & BND & DSC & clDice & TLD & BND & Sens. & Prec. & DSC \\
+\midrule
+Union, seeded & 92.45 & 93.23 & 93.06 & 90.24 & 95.22 & 92.31 & 98.23 & 88.71 & 94.74 \\
+Branch-relative trim ($\kappa=0.4$) & 93.57 & 92.30 & 94.04 & 90.18 & 94.60 & 91.33 & 97.09 & 91.46 & 92.67 \\
+\midrule
+Voxel-wise stacking (GBT) & 92.73 & 92.38 & 93.83 & 90.74 & 94.95 & 91.93 & 98.18 & 90.13 & 95.19 \\
+Mixture-of-experts gating & 92.86 & 92.60 & -- & -- & -- & -- & -- & -- & -- \\
+Uncertainty-weighted voting & 92.61 & 93.10 & 93.20 & 90.33 & 95.09 & 92.08 & 98.17 & 89.03 & 94.43 \\
+\textbf{Generation-specific} & \textbf{93.72} & \textbf{92.25} & \textbf{94.18} & \textbf{90.26} & \textbf{94.52} & \textbf{91.17} & \textbf{97.15} & \textbf{91.66} & \textbf{92.69} \\
+Boundary-aware (SDF) & 92.64 & 92.65 & 93.15 & 90.33 & 95.02 & 91.87 & 97.19 & 89.76 & 93.31 \\
+Graph branch score & 93.47 & 92.24 & 93.96 & 90.30 & 94.61 & 91.50 & 97.36 & 91.07 & 92.88 \\
+Multi-scale (scale space) & 92.57 & 93.21 & 93.15 & 90.22 & 95.15 & 92.22 & 97.98 & 89.06 & 94.48 \\
+Global member weights & 93.73 & 92.34 & 94.15 & 90.59 & 94.96 & 91.46 & 96.85 & 91.92 & 92.29 \\
+Flip TTA & 92.88 & 92.33 & 93.43 & 90.52 & 94.65 & 91.32 & 98.07 & 89.52 & -- \\
+Refinement CNN & 93.44 & 92.41 & 94.12 & 90.10 & 94.73 & 91.44 & 97.25 & 91.48 & 93.21 \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -906,9 +985,11 @@ Supported by three & 8\,220 & & 5.6 & 1\,550 & & 0.0 \\
 \caption{Accuracy against completeness for every fusion rule on the test
 split: DSC against branch detection (left) and tree length (right) for the
 51 voxel-level rules of the validation sweep (grey), the three reference
-strategies, and the proposed refinement as $\kappa$ runs from 0 (the union)
-to 0.9, with the protected core at 1.5 voxels (solid) and 1 voxel (dashed).
-Rules below the window are omitted.}
+strategies, and the earlier branch-relative trim as $\kappa$ runs from 0 (the
+union) to 0.9, with the protected core at 1.5 voxels (solid) and 1 voxel (dashed).
+Rules below the window are omitted. The adopted generation-specific rule
+lies at DSC 94.18 and branch detection 91.17, just right of and below
+the $\kappa=0.4$ point.}
 \label{fig:frontier}
 \end{figure}
 
@@ -934,7 +1015,7 @@ mean does.
 \caption{Each model alone and every combination of them on the nine annotated
 pediatric volumes, seeded selection, mean over volumes. HD95 is the 95th
 percentile of the surface distance in millimetres. Best value per column in
-bold, second best underlined. ``All three, refined'' is the union after the uncertainty-aware refinement of Section~\ref{sec:confidence}, with the adult operating point.}
+bold, second best underlined. ``All three, generation-specific'' is the union after the uncertainty-aware refinement of Section~\ref{sec:confidence}, with the band rules chosen on the adult validation split.}
 \label{tab:ped}
 \setlength{\tabcolsep}{3.5pt}\footnotesize
 \begin{tabular}{@{}lccccccc@{}}
@@ -949,7 +1030,7 @@ AirMorph $\cup$ MEDPSeg & \underline{94.01} & 95.39 & 89.46 & 77.01 & \underline
 AirMorph $\cup$ TfeNet & 93.06 & 95.61 & 90.58 & \underline{80.36} & 87.20 & 99.87 & 0.55 \\
 MEDPSeg $\cup$ TfeNet & 93.39 & 94.57 & 87.36 & 74.10 & 87.77 & 99.87 & \underline{0.54} \\
 All three members & \textbf{94.74} & \textbf{97.06} & \textbf{93.91} & \textbf{86.40} & \textbf{90.21} & 99.85 & \textbf{0.53} \\
-All three, refined ($\kappa=0.4$) & 92.67 & \underline{96.87} & \underline{92.01} & 80.16 & 86.54 & 99.86 & 0.55 \\
+All three, generation-specific & 92.69 & \underline{96.82} & \underline{91.70} & 80.21 & 86.58 & 99.86 & 0.55 \\
 \midrule
 Majority vote & 88.15 & 87.54 & 82.50 & 60.78 & 84.03 & 93.64 & 13.02 \\
 Majority vote, selected & 90.93 & 91.49 & 80.17 & 59.26 & 83.48 & \textbf{99.95} & 0.85 \\
