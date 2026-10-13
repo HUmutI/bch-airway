@@ -29,6 +29,10 @@ VAL_RUN = os.path.join(ROOT, "ATM26_VAL_RUN")
 BUNDLE = os.path.join(ROOT, "paper", "airway_paper_bundle", "08_masks_and_gt")
 SEG_ROOT = os.path.join(ROOT, "airway-seg")
 PED_GT = os.path.join(ROOT, "pediatric_annotations")
+# Final radiologist-reviewed references (2026-10-10); split name "pediatric_v3".
+# The original split "pediatric" keeps the earlier references and caches.
+PED_GT_DIRS = {"pediatric": PED_GT,
+               "pediatric_v3": os.path.join(ROOT, "pediatric_annotations_v3_final")}
 STUDY = os.environ.get("AIRWAY_FUSION_STUDY", os.path.join(ROOT, "fusion_uncertainty_run"))
 PED_MEMBERS = os.path.join(STUDY, "pediatric_members")
 CACHE = os.path.join(STUDY, "cache")
@@ -68,17 +72,17 @@ ATM = {
 def cases(split):
     if split in ATM:
         return sorted(os.listdir(ATM[split]["cache"]))
-    if split == "pediatric":
+    if split in PED_GT_DIRS:
         out = []
-        for f in sorted(glob.glob(os.path.join(PED_GT, "*.nii.gz"))):
+        for f in sorted(glob.glob(os.path.join(PED_GT_DIRS[split], "*.nii.gz"))):
             m = re.search(r"(sub-\d+_acc-\d+)", os.path.basename(f))
             out.append(m.group(1))
         return out
     raise ValueError(split)
 
 
-def ped_gt_path(cid):
-    hits = glob.glob(os.path.join(PED_GT, f"*{cid}*.nii.gz"))
+def ped_gt_path(cid, split="pediatric"):
+    hits = glob.glob(os.path.join(PED_GT_DIRS[split], f"*{cid}*.nii.gz"))
     assert len(hits) == 1, (cid, hits)
     return hits[0]
 
@@ -128,19 +132,19 @@ def load_case(split, cid):
         for k in ("medpseg", "tfenet"):
             with np.load(os.path.join(L[k], f"ATM26_{cid}.npz")) as p:
                 c[k] = p["raw"].astype(bool)
-    elif split == "pediatric":
+    elif split in PED_GT_DIRS:
         d = ped_case_dir(cid)
         ref = os.path.join(d, "airway_bin.nii.gz")
         img = sitk.ReadImage(ref)
         c["spacing"] = np.array(img.GetSpacing()[::-1], dtype=float)
-        c["gt"] = _aligned_gt(ped_gt_path(cid), ref).astype(np.uint8)
+        c["gt"] = _aligned_gt(ped_gt_path(cid, split), ref).astype(np.uint8)
         c["airmorph"] = sitk.GetArrayFromImage(img) > 0
         for k, f in (("medpseg", "medpseg_airway.nii.gz"), ("tfenet", "tfenet_airway.nii.gz")):
             c[k] = sitk.GetArrayFromImage(sitk.ReadImage(os.path.join(d, f))) > 0
         with np.load(os.path.join(PED_MEMBERS, f"{cid}.npz")) as p:
             for k in AIRMORPH_MEMBERS:
                 c[k] = p[k].astype(bool)
-        skel_path = os.path.join(CACHE, "pediatric", cid, "gt_skeleton.npy")
+        skel_path = os.path.join(CACHE, split, cid, "gt_skeleton.npy")
         if os.path.exists(skel_path):
             c["gt_skeleton_raw"] = np.load(skel_path)
         else:

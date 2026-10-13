@@ -83,7 +83,7 @@ def run_case(args):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--split", required=True, choices=("val", "test", "pediatric"))
+    ap.add_argument("--split", required=True, choices=("val", "test", "pediatric", "pediatric_v3"))
     ap.add_argument("--workers", type=int, default=8)
     ap.add_argument("--cases", nargs="*")
     a = ap.parse_args()
