@@ -156,7 +156,8 @@ def main():
     joint = pd.read_csv(os.path.join(R, "joint_model.csv"), index_col=0).iloc[:, 0]
     J = lambda k: joint[k]
     Jf = lambda k: float(joint[k])
-    Jci = lambda k: [float(v) for v in re.findall(r"[-+]?\d*\.\d+|[-+]?\d+", str(joint[k]))]
+    # CI cells are stored as "(np.float64(a), np.float64(b))": drop the type name before parsing
+    Jci = lambda k: [float(v) for v in re.findall(r"[-+]?\d*\.\d+|[-+]?\d+", str(joint[k]).replace("np.float64", ""))]
     by = pd.read_csv(os.path.join(R, "alr_by_age_group.csv"))
     assoc = pd.read_csv(os.path.join(R, "alr_associations.csv"), index_col=0)
     t = pd.read_csv(os.path.join(R, "case_table.csv"))
@@ -251,7 +252,7 @@ def main():
     neg = [g for g in range(1, 11) if G[(g, "normalised")].coef < 0 and G[(g, "normalised")].p < 0.05]
     res2 = heading("Generation-specific age associations") + para([
         f"Within each generation G1–G10, subject-level diameter increased with age (Spearman ρ, {min(r.spearman_rho for r in gabs):.2f}–{max(r.spearman_rho for r in gabs):.2f}; "
-        f"all P < 0.001; Table 5; Figure 8). The absolute slope decreased from {gabs[0].coef:.2f} mm per year at G1 to {gabs[6].coef:.2f}–{gabs[9].coef:.2f} mm per year at G7–G10, "
+        f"all P < 0.001; Table 5; Figure 8). The absolute slope decreased from {gabs[0].coef:.2f} mm per year at G1 to {min(r.coef for r in gabs[6:]):.3f}–{max(r.coef for r in gabs[6:]):.3f} mm per year at G7–G10, "
         f"but relative to each generation's mean diameter the increase was {gabs[0].slope_pct_per_year:.1f}% per year at G1–G2, "
         f"{min(r.slope_pct_per_year for r in gabs[2:5]):.1f}–{max(r.slope_pct_per_year for r in gabs[2:5]):.1f}% at G3–G5 and "
         f"{min(r.slope_pct_per_year for r in gabs[5:]):.1f}–{max(r.slope_pct_per_year for r in gabs[5:]):.1f}% at G6–G10. In the joint mixed-effects model, diameter increased by "
@@ -345,7 +346,7 @@ def main():
     rels = open(rels_p, encoding="utf8").read()
     figs = [("Figure_5_central_diameter_vs_age.png",
              "Figure 5. Central-airway diameter against continuous age. Tracheal, left main-bronchial and right main-bronchial diameter of each subject against age, "
-             "colored by sex, with the ordinary least-squares regression line and its 95% confidence band; slope, R² and Spearman ρ are given in each panel."),
+             "colored by sex, with the ordinary least-squares regression line and its 95% confidence band; slopes, R² and Spearman ρ are given in Table 4."),
             ("Figure_6_normalised_diameter_vs_age.png",
              "Figure 6. Lung-volume-normalized central-airway diameter against age. Diameter divided by the cube root of total segmented lung volume (mm/L^1/3), with the "
              "regression line and 95% confidence band; none of the slopes differs from zero."),
@@ -354,8 +355,8 @@ def main():
              "band and the dashed line the isometric slope of 1/3 through the same data. The fitted exponents (0.30–0.33) do not differ from 1/3."),
             ("Figure_8_generation_age_slopes.png",
              "Figure 8. Age association of airway diameter by topologic generation. Left: ordinary least-squares slope of subject-level generation diameter on age "
-             "(mm per year, 95% CI) for G1–G10, annotated as a percentage of the generation's mean diameter. Right: the same for lung-volume-normalized diameter; "
-             "asterisks mark slopes with P < 0.05. The joint mixed-effects estimates are given in each panel."),
+             "(mm per year, 95% CI) for G1–G10. Right: the same for lung-volume-normalized diameter. "
+             "Percent change per year, P values and the joint mixed-effects estimates are given in Table 5 and the text."),
             ("Figure_9_airway_to_lung_ratio.png",
              "Figure 9. Airway-to-lung ratio against age. Left: ten-branch ALR (trachea, main bronchi and seven segmental bronchi, distance-transform diameters). "
              "Right: ALR of the trachea and main bronchi (calliper diameters). Points are subjects colored by sex, the black line the regression on age with its 95% "

@@ -28,6 +28,15 @@ FAILURES = RUN / "cross_section_failures.csv"
 COHORT = RUN / "cohort_90.csv"
 
 
+# Cases whose LMB was mis-identified as a short stub at the carina, with the
+# branch that is the left main bronchus.
+#   sub-0534_acc-0193: radiologist/QC review of the tube-corrected case; the
+#     classifier had selected stub 199, branch 200 is the dominant LMB fragment.
+#   sub-0261_acc-0081 (2026-10-13): branch 196 is a 3.7 mm skeleton fragment at
+#     the carina (single oblique section through the bifurcation, calliper
+#     12.47 mm, eccentricity 0.26); branch 197 continues it as the LMB.
+LMB_OVERRIDES = {"sub-0534_acc-0193": 200, "sub-0261_acc-0081": 197}
+
 SOURCES = [
     (BASE / "or_all3_run/normal_airway_branch_morphometry.csv",
      BASE / "or_all3_run/normal_airway_morphometry_status.csv"),
@@ -51,7 +60,7 @@ def derive_topology(case_ids: set[str]) -> pd.DataFrame:
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
 
-    frames = []
+    frames, edt = [], {}
     for branch_path, status_path in SOURCES:
         branches = pd.read_csv(
             branch_path, low_memory=False,
@@ -61,13 +70,21 @@ def derive_topology(case_ids: set[str]) -> pd.DataFrame:
         if not len(branches):
             continue
         topology = module.extract_central_topology(branches)
+        for case_id, branch_id in LMB_OVERRIDES.items():
+            row = branches[branches.case_id.eq(case_id) & branches.branch_instance_id.eq(branch_id)]
+            if len(row):
+                edt[case_id] = float(row.diameter_mean_mm.iloc[0])
         status = pd.read_csv(status_path)[["case_id", "case_dir"]]
         frames.append(topology.merge(status, on="case_id", validate="one_to_one"))
 
     topology = pd.concat(frames, ignore_index=True)
-    # Radiologist/QC review of the tube-corrected case established that branch
-    # 200 is the dominant LMB fragment; the classifier had selected stub 199.
-    topology.loc[topology.case_id.eq("sub-0534_acc-0193"), "lmb_branch_id"] = 200
+    # The classifier selected a carina stub as the LMB in these cases (see
+    # LMB_OVERRIDES); the main bronchus is the branch that continues from it, and
+    # its distance-transform diameter is taken from that branch as well.
+    for case_id, branch_id in LMB_OVERRIDES.items():
+        selected = topology.case_id.eq(case_id)
+        topology.loc[selected, "lmb_branch_id"] = branch_id
+        topology.loc[selected, "lmb_edt_mean_diameter_mm"] = edt[case_id]
     missing = case_ids - set(topology.case_id)
     if missing:
         raise SystemExit(f"no central-airway topology for: {sorted(missing)}")
@@ -104,7 +121,7 @@ def load_cohort() -> pd.DataFrame:
     cohort["source_fingerprint"] = [
         source_fingerprint(row.case_dir, row.case_id) for row in cohort.itertuples()
     ]
-    corrected = cohort.case_id.eq("sub-0534_acc-0193")
+    corrected = cohort.case_id.isin(LMB_OVERRIDES)
     cohort.loc[corrected, "source_fingerprint"] += (
         "|topology:" + cohort.loc[corrected, "root_branch_id"].astype(str) + ","
         + cohort.loc[corrected, "lmb_branch_id"].astype(str) + ","

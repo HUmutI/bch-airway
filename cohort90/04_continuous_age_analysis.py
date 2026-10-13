@@ -203,11 +203,8 @@ def fig_vs_age(t, cols, labels, ylabel, out, norm=False):
         slope, (lo, hi) = m.params[1], m.conf_int()[1]
         unit = "mm/L$^{1/3}$" if norm else "mm"
         ax.set_title(lab, fontsize=10)
-        ax.text(0.03, 0.97, f"slope {slope:+.3f} {unit}/y (95% CI {lo:+.3f} to {hi:+.3f})\n"
-                            f"R$^2$ {m.rsquared:.2f}, Spearman ρ {rho:+.2f}, P {'<0.001' if p < 0.001 else f'= {p:.2f}'}",
-                transform=ax.transAxes, va="top", fontsize=7.5)
-        ax.set_xlabel("Age (years)"); ax.set_xlim(0, 18.5)
-        lo_, hi_ = d[k].min(), d[k].max(); ax.set_ylim(lo_ - 0.08 * (hi_ - lo_), hi_ + 0.35 * (hi_ - lo_))
+        ax.set_xlabel("Age (years)"); ax.set_xlim(0, 18.5); ax.set_xticks([0, 5, 10, 15])
+        lo_, hi_ = d[k].min(), d[k].max(); ax.set_ylim(lo_ - 0.08 * (hi_ - lo_), hi_ + 0.10 * (hi_ - lo_))
     axes[0].set_ylabel(ylabel); axes[0].legend(loc="lower right", fontsize=8, frameon=False)
     fig.tight_layout(); fig.savefig(out + ".pdf"); fig.savefig(out + ".png", dpi=300); plt.close(fig)
 
@@ -228,14 +225,12 @@ def fig_vs_volume(t, out):
         rho, p = stats.spearmanr(d.tlv_ml, d[k])
         ax.set_xscale("log"); ax.set_yscale("log")
         ax.set_title(lab, fontsize=10)
-        ax.text(0.03, 0.97, f"d ∝ TLV$^{{b}}$, b = {b:.2f} (95% CI {lo:.2f} to {hi:.2f})\nR$^2$ {m.rsquared:.2f}, Spearman ρ {rho:+.2f}, P {'<0.001' if p < 0.001 else f'= {p:.2f}'}",
-                transform=ax.transAxes, va="top", fontsize=7.5)
         ax.set_xlabel("Segmented lung volume (mL)")
         ax.set_xticks([200, 500, 1000, 2000, 5000]); ax.get_xaxis().set_major_formatter(matplotlib.ticker.ScalarFormatter())
         ax.set_yticks([3, 4, 5, 6, 8, 10, 15, 20]); ax.yaxis.set_major_formatter(matplotlib.ticker.FuncFormatter(lambda v, _: f"{v:g}"))
         ax.yaxis.set_minor_formatter(matplotlib.ticker.NullFormatter()); ax.xaxis.set_minor_formatter(matplotlib.ticker.NullFormatter())
         ax.xaxis.set_major_formatter(matplotlib.ticker.FuncFormatter(lambda v, _: f"{v:g}"))
-        ax.set_ylim(d[k].min() * 0.85, d[k].max() * 1.35)
+        ax.set_ylim(d[k].min() * 0.85, d[k].max() * 1.12)
     axes[0].set_ylabel("Diameter (mm)"); axes[0].legend(loc="lower right", fontsize=7.5, frameon=False)
     fig.tight_layout(); fig.savefig(out + ".pdf"); fig.savefig(out + ".png", dpi=300); plt.close(fig)
 
@@ -246,38 +241,24 @@ def fig_generation(gr, joint, out):
         d = gr[gr.kind == kind].sort_values("generation")
         ax.errorbar(d.generation, d.coef, yerr=[d.coef - d.ci_low, d.ci_high - d.coef], fmt="o", color="#2A78D6", ecolor="#2A78D6", capsize=2, ms=4)
         ax.axhline(0, color="#999", lw=0.8, ls="--")
-        for _, r in d.iterrows():
-            if kind == "absolute":
-                ax.annotate(f"{r.slope_pct_per_year:+.1f}%/y", (r.generation, r.ci_high), textcoords="offset points",
-                            xytext=(0, 4), ha="center", fontsize=6.5, color="#555", rotation=90, va="bottom")
-            elif r.p < 0.05:
-                ax.annotate("*", (r.generation, r.ci_high), textcoords="offset points", xytext=(0, 2), ha="center", fontsize=9, color="#555")
         ax.set_xticks(GENS); ax.set_xlabel("Topologic generation"); ax.set_ylabel(ylabel)
-    axes[0].set_title("Absolute diameter against age, per generation", fontsize=9.5)
-    axes[1].set_title("Lung-volume-normalised diameter against age", fontsize=9.5)
-    axes[0].set_ylim(top=axes[0].get_ylim()[1] * 1.25)
-    axes[0].text(0.98, 0.96, f"joint mixed model: {joint['age_pct_per_year']:+.1f}% per year (95% CI {joint['age_pct_ci'][0]:+.1f} to {joint['age_pct_ci'][1]:+.1f})",
-                 transform=axes[0].transAxes, fontsize=7.5, ha="right", va="top")
-    axes[1].text(0.98, 0.96, f"joint mixed model: {joint['norm_age_pct_per_year']:+.1f}% per year (95% CI {joint['norm_age_pct_ci'][0]:+.1f} to {joint['norm_age_pct_ci'][1]:+.1f})",
-                 transform=axes[1].transAxes, fontsize=7.5, ha="right", va="top")
+    axes[0].set_title("Absolute diameter", fontsize=10)
+    axes[1].set_title("Lung-volume-normalised diameter", fontsize=10)
     fig.tight_layout(); fig.savefig(out + ".pdf"); fig.savefig(out + ".png", dpi=300); plt.close(fig)
 
 
 def fig_alr(t, assoc, out):
     fig, axes = plt.subplots(1, 2, figsize=(9, 3.6))
-    for ax, k, lab in ((axes[0], "alr_10", "ALR, ten central branches (distance-transform diameters)"),
-                       (axes[1], "alr_central3", "ALR, trachea and main bronchi (calliper diameters)")):
+    for ax, k, lab in ((axes[0], "alr_10", "Ten central branches"),
+                       (axes[1], "alr_central3", "Trachea and main bronchi")):
         d = t.dropna(subset=[k])
         scatter_sex(ax, d, "age", k)
         fit_line(ax, d.age.values, d[k].values)
         med = d.groupby("age_group", observed=True)[k].median()
         centres = [1, 3, 5, 7, 9, 11, 13, 15, 17]
         ax.plot(centres, med.values, "s-", color="#1B9E6A", ms=4, lw=1, label="age-group median")
-        a = assoc[k]
-        ax.text(0.03, 0.97, f"median {a['median']:.4f} (IQR {a['q1']:.4f}–{a['q3']:.4f})\nslope {a['slope_per_year']:+.5f}/y, Spearman ρ {a['spearman_rho']:+.2f}, P {'<0.001' if a['spearman_p'] < 0.001 else f'= {a[chr(115)+chr(112)+chr(101)+chr(97)+chr(114)+chr(109)+chr(97)+chr(110)+chr(95)+chr(112)]:.2f}'}",
-                transform=ax.transAxes, va="top", fontsize=7.5)
-        ax.set_title(lab, fontsize=9.5); ax.set_xlabel("Age (years)"); ax.set_xlim(0, 18.5)
-        lo_, hi_ = d[k].min(), d[k].max(); ax.set_ylim(lo_ - 0.1 * (hi_ - lo_), hi_ + 0.45 * (hi_ - lo_))
+        ax.set_title(lab, fontsize=10); ax.set_xlabel("Age (years)"); ax.set_xlim(0, 18.5); ax.set_xticks([0, 5, 10, 15])
+        lo_, hi_ = d[k].min(), d[k].max(); ax.set_ylim(lo_ - 0.1 * (hi_ - lo_), hi_ + 0.12 * (hi_ - lo_))
     axes[0].set_ylabel("Airway-to-lung ratio (dimensionless)"); axes[0].legend(loc="upper right", fontsize=7.5, frameon=False)
     fig.tight_layout(); fig.savefig(out + ".pdf"); fig.savefig(out + ".png", dpi=300); plt.close(fig)
 
