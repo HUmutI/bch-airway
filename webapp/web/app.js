@@ -49,7 +49,7 @@ const AirwayApp = (() => {
     const ready = () => { go.disabled = !(file && ack.checked); };
     const pick = (f) => {
       if (!f) return;
-      if (!/\.nii(\.gz)?$/i.test(f.name)) { $("err").textContent = "Choose a .nii or .nii.gz file."; return; }
+      if (!/\.(nii(\.gz)?|mha|nrrd|zip)$/i.test(f.name)) { $("err").textContent = "Choose a .nii.gz, .nii, .mha, .nrrd or a DICOM series as .zip."; return; }
       file = f; $("err").textContent = "";
       $("fname").textContent = `${f.name} · ${(f.size / 1048576).toFixed(1)} MB`;
       ready();

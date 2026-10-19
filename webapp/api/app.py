@@ -18,6 +18,7 @@ from starlette.concurrency import run_in_threadpool
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import config as C  # noqa: E402
 from api.cloud import after_write, before_read, wake_worker  # noqa: E402
+from api import convert  # noqa: E402
 
 WEB = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "web")
 app = FastAPI(title="Airway segmentation and branch labelling", docs_url=None, redoc_url=None)
@@ -92,12 +93,13 @@ def parse_age(age):
 async def create_job(request: Request, file: UploadFile = File(...), age_years: str = Form(None)):
     age = parse_age(age_years)
     name = os.path.basename(file.filename or "")
-    if not (name.endswith(".nii.gz") or name.endswith(".nii")):
-        raise HTTPException(400, "upload a NIfTI file (.nii or .nii.gz)")
+    ext, kind = convert.kind_of(name)
+    if kind is None:
+        raise HTTPException(400, f"upload a CT volume as {convert.ACCEPTED} (DICOM: one series in a .zip)")
     job_id = secrets.token_hex(8)
     d = os.path.join(C.JOBS_DIR, job_id)
     os.makedirs(d, exist_ok=False)
-    dst = os.path.join(d, "input.nii.gz" if name.endswith(".gz") else "input.nii")
+    dst = os.path.join(d, "input.nii.gz" if ext == ".nii.gz" else "upload" + ext)
     limit = C.MAX_UPLOAD_MB * 1024 * 1024
     size = 0
     with open(dst, "wb") as fh:
@@ -107,12 +109,13 @@ async def create_job(request: Request, file: UploadFile = File(...), age_years: 
                 fh.close(); os.remove(dst); os.rmdir(d)
                 raise HTTPException(413, f"file exceeds {C.MAX_UPLOAD_MB} MB")
             fh.write(chunk)
-    if dst.endswith(".nii"):
-        # the worker expects input.nii.gz; gzip the plain file once
-        import gzip, shutil
-        with open(dst, "rb") as fi, gzip.open(dst + ".gz", "wb", compresslevel=1) as fo:
-            shutil.copyfileobj(fi, fo)
-        os.remove(dst)
+    # the worker reads input.nii.gz; other formats are converted here, once
+    try:
+        await run_in_threadpool(convert.to_nifti, dst, kind, os.path.join(d, "input.nii.gz"))
+    except ValueError as e:
+        import shutil
+        shutil.rmtree(d, ignore_errors=True)
+        raise HTTPException(400, str(e))
     status = {"id": job_id, "state": "queued", "filename": name, "size_bytes": size,
               "created": datetime.now(timezone.utc).isoformat(timespec="seconds"),
               "client": request.client.host if request.client else None,

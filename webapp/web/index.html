@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Airway segmentation and branch labelling</title>
-<link rel="stylesheet" href="/static/app.css?v=17">
+<link rel="stylesheet" href="/static/app.css?v=19">
 </head>
 <body>
 <div class="wrap">
@@ -14,28 +14,42 @@
   </header>
 
   <div class="banner">
-    <strong>Research use only.</strong> This is a research prototype and is not approved
-    for clinical use. Its output must not be used for diagnosis, treatment planning, or any
-    other clinical decision. Do not upload data that contains protected health information.
+    <strong>Research use only.</strong> Not approved for clinical use. Do not upload data that contains
+    protected health information.
   </div>
 
-  <div class="card">
-    <h2>Upload a chest CT</h2>
-    <p>One NIfTI volume (<code>.nii</code> or <code>.nii.gz</code>) in Hounsfield units. The
-      pipeline segments the airway with three models, fuses them, and names every branch by
-      lobe and segment. A typical scan takes about ten minutes; a GPU is started for it
-      when you upload.</p>
+  <section class="hero">
+    <div class="hero-text">
+      <p class="lead">From a chest CT to a labelled 3D airway tree, automatically.</p>
+      <ol class="steps">
+        <li><span class="ic"><svg viewBox="0 0 24 24"><path d="M12 3v12m0-12-4 4m4-4 4 4M4 15v4a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4"/></svg></span>
+          <div><b>Upload</b><span>one chest CT</span></div></li>
+        <li><span class="ic"><svg viewBox="0 0 24 24"><circle cx="8" cy="9" r="4"/><circle cx="16" cy="9" r="4"/><circle cx="12" cy="15" r="4"/></svg></span>
+          <div><b>Segment</b><span>three models, fused</span></div></li>
+        <li><span class="ic"><svg viewBox="0 0 24 24"><path d="M12 3v7m0 0-6 5v5m6-10 6 5v5M6 15l-3 3m15-3 3 3"/></svg></span>
+          <div><b>Explore</b><span>3D tree, labels, measurements</span></div></li>
+      </ol>
+      <p class="hint">About ten minutes per scan; a GPU starts when you upload.</p>
+    </div>
+    <figure class="hero-img">
+      <img src="/static/hero_airway.png" alt="Airway tree coloured by confidence">
+      <figcaption><span class="ramp-mini"></span> confidence: one model … all models agree</figcaption>
+    </figure>
+  </section>
 
+  <div class="card">
+    <h2>Upload a NIfTI CT</h2>
     <div class="drop" id="drop">
+      <svg class="drop-ic" viewBox="0 0 24 24"><path d="M12 15V3m0 0-4 4m4-4 4 4M4 15v4a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4"/></svg>
       <div>Drop a file here, or click to choose</div>
+      <div class="formats"><code>.nii.gz</code> <code>.nii</code> · also <code>.mha</code> <code>.nrrd</code> or a DICOM series as <code>.zip</code></div>
       <div class="name" id="fname"></div>
-      <input type="file" id="file" accept=".nii,.nii.gz,.gz" hidden>
+      <input type="file" id="file" accept=".nii,.nii.gz,.gz,.mha,.nrrd,.zip" hidden>
     </div>
 
     <div class="row">
       <label class="age">Patient age <input type="number" id="age" min="0" max="18" step="0.1" placeholder="years">
-        <span class="hint">optional; only used to report measurements as percentiles for age against a
-          90-scan normative pediatric cohort</span></label>
+        <span class="hint">optional · for percentiles against a 90-scan pediatric cohort</span></label>
     </div>
     <div class="row">
       <label class="ack"><input type="checkbox" id="ack">
@@ -50,21 +64,24 @@
 
   <div class="card">
     <h2>What you get back</h2>
-    <p>The fused airway mask, the lobar and segmental label maps, the branch instances, the
-      centreline and a per-voxel confidence map, all as NIfTI in the orientation of the scan you uploaded, plus an
-      in-browser 3D view, per-branch morphometry with percentiles for age, sanity checks on the
-      result, and a bundle that opens in ITK-SNAP for correction. Files are kept on the server
-      only as long as needed to serve them.</p>
+    <div class="tiles">
+      <div class="tile"><svg viewBox="0 0 24 24"><path d="M12 3v6m0 0-5 5v6m5-11 5 5v6"/></svg><b>Airway mask</b><span>3D, fused</span></div>
+      <div class="tile"><svg viewBox="0 0 24 24"><path d="M4 7h7v4H4zM13 13h7v4h-7zM4 15h5M15 7h5"/></svg><b>Branch labels</b><span>lobe and segment</span></div>
+      <div class="tile"><svg viewBox="0 0 24 24"><path d="M12 3v6l-6 6v6m6-12 6 6v6" stroke-dasharray="2 2"/></svg><b>Centreline</b><span>branch tree</span></div>
+      <div class="tile"><svg viewBox="0 0 24 24"><rect x="3" y="10" width="18" height="4" rx="2"/><path d="M8 10v4m5-4v4"/></svg><b>Confidence</b><span>per voxel and branch</span></div>
+      <div class="tile"><svg viewBox="0 0 24 24"><path d="M3 21h18M6 17v-5m5 5V8m5 9v-7"/></svg><b>Measurements</b><span>percentiles for age</span></div>
+      <div class="tile"><svg viewBox="0 0 24 24"><path d="M4 20l4-1 10-10-3-3L5 16zM13 6l3 3"/></svg><b>ITK-SNAP bundle</b><span>for correction</span></div>
+    </div>
+    <p class="hint">All files are NIfTI in the orientation of the uploaded scan, with an in-browser 3D view.
+      Files are kept on the server only as long as needed to serve them.</p>
   </div>
 
-  <footer>Method: union of AirMorph-R (our reimplementation of AirMorph), MEDPSeg-R (MEDPSeg retrained
-    on our training data) and TfeNet, keeping the connected component that overlaps AirMorph-R most
-    (anchored selection), then a graph transformer for branch naming. Each voxel carries a confidence: the
-    probability that it is airway given which of the three models (and how many of AirMorph-R's five
-    networks) marked it, calibrated on the ATM'26 validation set. Research prototype.</footer>
+  <footer>Method: union of AirMorph-R, MEDPSeg-R and TfeNet; the component overlapping AirMorph-R is kept
+    (anchored selection); branches are named by a graph transformer. Confidence is calibrated on the ATM'26
+    validation set.</footer>
   <footer class="credit">Airway segmentation and branch labelling · QUIN Lab, Boston Children's Hospital · built by Hüseyin Umut Işık</footer>
 </div>
-<script src="/static/app.js?v=18"></script>
+<script src="/static/app.js?v=19"></script>
 <script>AirwayApp.upload();</script>
 </body>
 </html>

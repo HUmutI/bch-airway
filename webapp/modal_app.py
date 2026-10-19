@@ -46,7 +46,8 @@ worker_image = (
 
 api_image = (
     modal.Image.debian_slim(python_version="3.11")
-    .pip_install("fastapi>=0.110", "uvicorn[standard]>=0.29", "python-multipart")
+    .pip_install("fastapi>=0.110", "uvicorn[standard]>=0.29", "python-multipart",
+                 "SimpleITK==2.3.1")   # api/convert.py: MHA, NRRD and zipped DICOM uploads
     .env({"AIRWAY_JOBS": "/jobs", "AIRWAY_BACKEND": "modal", "AIRWAY_MODAL_APP": APP_NAME})
     .add_local_dir(os.path.join(HERE, "api"), remote_path="/root/app/api")
     .add_local_dir(os.path.join(HERE, "web"), remote_path="/root/app/web")
