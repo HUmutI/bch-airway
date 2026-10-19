@@ -194,7 +194,7 @@ def scatter_sex(ax, d, x, y):
 
 
 def fig_vs_age(t, cols, labels, ylabel, out, norm=False):
-    fig, axes = plt.subplots(1, 3, figsize=(10.5, 3.4), sharex=True)
+    fig, axes = plt.subplots(1, 3, figsize=(10.5, 3.4), sharex=True, sharey=True)
     for ax, k, lab in zip(axes, cols, labels):
         d = t.dropna(subset=[k])
         scatter_sex(ax, d, "age", k)
@@ -204,33 +204,37 @@ def fig_vs_age(t, cols, labels, ylabel, out, norm=False):
         unit = "mm/L$^{1/3}$" if norm else "mm"
         ax.set_title(lab, fontsize=10)
         ax.set_xlabel("Age (years)"); ax.set_xlim(0, 18.5); ax.set_xticks([0, 5, 10, 15])
-        lo_, hi_ = d[k].min(), d[k].max(); ax.set_ylim(lo_ - 0.08 * (hi_ - lo_), hi_ + 0.10 * (hi_ - lo_))
+    # one linear y range for the three panels, from zero, so that they compare directly
+    axes[0].set_ylim(0, np.ceil(1.08 * np.nanmax(t[list(cols)].values)))
+    axes[0].yaxis.set_major_locator(matplotlib.ticker.MaxNLocator(nbins=5, integer=True))
+    for ax in axes:
+        ax.tick_params(labelleft=True)            # shared range, but values on every panel
     axes[0].set_ylabel(ylabel); axes[0].legend(loc="lower right", fontsize=8, frameon=False)
     fig.tight_layout(); fig.savefig(out + ".pdf"); fig.savefig(out + ".png", dpi=300); plt.close(fig)
 
 
 def fig_vs_volume(t, out):
-    fig, axes = plt.subplots(1, 3, figsize=(10.5, 3.4))
+    fig, axes = plt.subplots(1, 3, figsize=(10.5, 3.4), sharex=True, sharey=True)
     for ax, k, lab in zip(axes, ("trachea", "lmb", "rmb"), ("Trachea", "Left main bronchus", "Right main bronchus")):
         d = t.dropna(subset=[k])
         scatter_sex(ax, d, "tlv_ml", k)
         lx, ly = np.log(d.tlv_ml.values), np.log(d[k].values)
         m = sm.OLS(ly, sm.add_constant(lx)).fit()
-        xs = np.linspace(lx.min(), lx.max(), 100)
+        xs = np.log(np.linspace(d.tlv_ml.min(), d.tlv_ml.max(), 200))   # evenly spaced on the linear axis
         pred = m.get_prediction(sm.add_constant(xs)).summary_frame(alpha=0.05)
         ax.plot(np.exp(xs), np.exp(pred["mean"]), color="#333", lw=1.4)
         ax.fill_between(np.exp(xs), np.exp(pred["mean_ci_lower"]), np.exp(pred["mean_ci_upper"]), color="#333", alpha=0.15, lw=0)
-        ax.plot(np.exp(xs), np.exp(m.params[0]) * np.exp(xs) ** (1 / 3) * np.exp(np.mean(ly - (m.params[0] + lx / 3))), "--", color="#999", lw=1, label="slope 1/3 (isometric)")
+        ax.plot(np.exp(xs), np.exp(m.params[0]) * np.exp(xs) ** (1 / 3) * np.exp(np.mean(ly - (m.params[0] + lx / 3))), "--", color="#999", lw=1, label="isometric, b = 1/3")
         b, (lo, hi) = m.params[1], m.conf_int()[1]
         rho, p = stats.spearmanr(d.tlv_ml, d[k])
-        ax.set_xscale("log"); ax.set_yscale("log")
         ax.set_title(lab, fontsize=10)
         ax.set_xlabel("Segmented lung volume (mL)")
-        ax.set_xticks([200, 500, 1000, 2000, 5000]); ax.get_xaxis().set_major_formatter(matplotlib.ticker.ScalarFormatter())
-        ax.set_yticks([3, 4, 5, 6, 8, 10, 15, 20]); ax.yaxis.set_major_formatter(matplotlib.ticker.FuncFormatter(lambda v, _: f"{v:g}"))
-        ax.yaxis.set_minor_formatter(matplotlib.ticker.NullFormatter()); ax.xaxis.set_minor_formatter(matplotlib.ticker.NullFormatter())
-        ax.xaxis.set_major_formatter(matplotlib.ticker.FuncFormatter(lambda v, _: f"{v:g}"))
-        ax.set_ylim(d[k].min() * 0.85, d[k].max() * 1.12)
+    # linear axes, one y range for the three panels; the fitted power law is drawn as a curve
+    axes[0].set_xlim(0, 2000 * np.ceil(t.tlv_ml.max() / 2000)); axes[0].set_xticks(np.arange(0, axes[0].get_xlim()[1] + 1, 2000))
+    axes[0].set_ylim(0, np.ceil(1.08 * np.nanmax(t[["trachea", "lmb", "rmb"]].values)))
+    axes[0].yaxis.set_major_locator(matplotlib.ticker.MaxNLocator(nbins=5, integer=True))
+    for ax in axes:
+        ax.tick_params(labelleft=True)
     axes[0].set_ylabel("Diameter (mm)"); axes[0].legend(loc="lower right", fontsize=7.5, frameon=False)
     fig.tight_layout(); fig.savefig(out + ".pdf"); fig.savefig(out + ".png", dpi=300); plt.close(fig)
 
