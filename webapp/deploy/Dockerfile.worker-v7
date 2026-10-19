@@ -1,0 +1,10 @@
+# v7 (2026-10-18): v6 plus MEDPSeg-R and the confidence table refitted with it, without rebuilding
+# the 20 GB environments. Equivalent to a full build of Dockerfile.worker from this commit.
+#   docker build -f deploy/Dockerfile.worker-v7 -t airway-worker:v7 .
+FROM airway-worker:v6
+ENV A=/opt/airway
+COPY deploy/vendor/medpseg_r_epoch035.ckpt $A/envs/medpseg/lib/python3.10/site-packages/medpseg/poly_medseg_25d_fix.ckpt
+COPY worker $A/app/worker
+COPY api $A/app/api
+COPY web $A/app/web
+COPY config.py README.md $A/app/

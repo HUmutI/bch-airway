@@ -245,14 +245,14 @@ def qc_flags(case, src_imgs, labels, stats):
 
     # 3. a member whose raw mask dwarfs the fused airway: artefacts were removed
     n_fused = int(mask.sum())
-    for f, name in (("airway_bin.nii.gz", "AirMorph"), ("medpseg_airway.nii.gz", "MEDPSeg"),
+    for f, name in (("airway_bin.nii.gz", "AirMorph-R"), ("medpseg_airway.nii.gz", "MEDPSeg-R"),
                     ("tfenet_airway.nii.gz", "TfeNet")):
         p = os.path.join(case, f)
         if os.path.exists(p):
             n = int((sitk.GetArrayFromImage(sitk.ReadImage(p)) > 0).sum())
             if n_fused and n > 2 * n_fused:
                 info("member_artefacts_removed", f"{name}'s raw mask was {n / n_fused:.1f}x the fused airway; "
-                     "the excess (typically slabs or vessels) was dropped by the seeded component selection. "
+                     "the excess (typically slabs or vessels) was dropped by the anchored component selection. "
                      "Check the periphery on that side.")
 
     # 4. a very small tree

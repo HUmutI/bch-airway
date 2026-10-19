@@ -84,6 +84,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 ENV A=/opt/airway
 COPY --from=build $A/envs $A/envs
 COPY --from=build $A/code $A/code
+# MEDPSeg-R (2026-10-18): MEDPSeg retrained on our ATM'26 training partition (epoch 35, see
+# medpseg_r/README.md) replaces the released poly_medseg_25d_fix.ckpt under the same file name, so
+# the unchanged medpseg CLI loads it. The released weights saw our adult test volumes.
+COPY deploy/vendor/medpseg_r_epoch035.ckpt $A/envs/medpseg/lib/python3.10/site-packages/medpseg/poly_medseg_25d_fix.ckpt
 COPY deploy/vendor/fuse_union3.py $A/fuse_union3.py
 COPY deploy/vendor/scripts $A/scripts
 COPY worker $A/app/worker

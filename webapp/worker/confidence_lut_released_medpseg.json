@@ -1,0 +1,198 @@
+{
+ "description": "P(voxel is airway | vote pattern), estimated on the 30 ATM'22 validation volumes inside the union+seeded mask. pattern = airmorph_votes*4 + 2*medpseg + tfenet.",
+ "source": "bch-airway/evaluation/fusion_uncertainty (cache_volumes.py pattern_hist)",
+ "table": [
+  {
+   "pattern": 0,
+   "airmorph_votes": 0,
+   "medpseg": 0,
+   "tfenet": 0,
+   "p_airway": null,
+   "n_val_voxels": 0
+  },
+  {
+   "pattern": 1,
+   "airmorph_votes": 0,
+   "medpseg": 0,
+   "tfenet": 1,
+   "p_airway": 0.2268,
+   "n_val_voxels": 3368
+  },
+  {
+   "pattern": 2,
+   "airmorph_votes": 0,
+   "medpseg": 1,
+   "tfenet": 0,
+   "p_airway": 0.539,
+   "n_val_voxels": 64998
+  },
+  {
+   "pattern": 3,
+   "airmorph_votes": 0,
+   "medpseg": 1,
+   "tfenet": 1,
+   "p_airway": 0.983,
+   "n_val_voxels": 131351
+  },
+  {
+   "pattern": 4,
+   "airmorph_votes": 1,
+   "medpseg": 0,
+   "tfenet": 0,
+   "p_airway": null,
+   "n_val_voxels": 0
+  },
+  {
+   "pattern": 5,
+   "airmorph_votes": 1,
+   "medpseg": 0,
+   "tfenet": 1,
+   "p_airway": 0.2816,
+   "n_val_voxels": 4900
+  },
+  {
+   "pattern": 6,
+   "airmorph_votes": 1,
+   "medpseg": 1,
+   "tfenet": 0,
+   "p_airway": 0.1255,
+   "n_val_voxels": 23194
+  },
+  {
+   "pattern": 7,
+   "airmorph_votes": 1,
+   "medpseg": 1,
+   "tfenet": 1,
+   "p_airway": 0.5809,
+   "n_val_voxels": 1878
+  },
+  {
+   "pattern": 8,
+   "airmorph_votes": 2,
+   "medpseg": 0,
+   "tfenet": 0,
+   "p_airway": null,
+   "n_val_voxels": 0
+  },
+  {
+   "pattern": 9,
+   "airmorph_votes": 2,
+   "medpseg": 0,
+   "tfenet": 1,
+   "p_airway": 0.2772,
+   "n_val_voxels": 7833
+  },
+  {
+   "pattern": 10,
+   "airmorph_votes": 2,
+   "medpseg": 1,
+   "tfenet": 0,
+   "p_airway": 0.2079,
+   "n_val_voxels": 37936
+  },
+  {
+   "pattern": 11,
+   "airmorph_votes": 2,
+   "medpseg": 1,
+   "tfenet": 1,
+   "p_airway": 0.8231,
+   "n_val_voxels": 11074
+  },
+  {
+   "pattern": 12,
+   "airmorph_votes": 3,
+   "medpseg": 0,
+   "tfenet": 0,
+   "p_airway": 0.173,
+   "n_val_voxels": 166229
+  },
+  {
+   "pattern": 13,
+   "airmorph_votes": 3,
+   "medpseg": 0,
+   "tfenet": 1,
+   "p_airway": 0.3317,
+   "n_val_voxels": 15898
+  },
+  {
+   "pattern": 14,
+   "airmorph_votes": 3,
+   "medpseg": 1,
+   "tfenet": 0,
+   "p_airway": 0.3183,
+   "n_val_voxels": 59030
+  },
+  {
+   "pattern": 15,
+   "airmorph_votes": 3,
+   "medpseg": 1,
+   "tfenet": 1,
+   "p_airway": 0.8361,
+   "n_val_voxels": 31503
+  },
+  {
+   "pattern": 16,
+   "airmorph_votes": 4,
+   "medpseg": 0,
+   "tfenet": 0,
+   "p_airway": 0.3428,
+   "n_val_voxels": 102701
+  },
+  {
+   "pattern": 17,
+   "airmorph_votes": 4,
+   "medpseg": 0,
+   "tfenet": 1,
+   "p_airway": 0.4617,
+   "n_val_voxels": 30242
+  },
+  {
+   "pattern": 18,
+   "airmorph_votes": 4,
+   "medpseg": 1,
+   "tfenet": 0,
+   "p_airway": 0.5132,
+   "n_val_voxels": 92639
+  },
+  {
+   "pattern": 19,
+   "airmorph_votes": 4,
+   "medpseg": 1,
+   "tfenet": 1,
+   "p_airway": 0.7335,
+   "n_val_voxels": 49842
+  },
+  {
+   "pattern": 20,
+   "airmorph_votes": 5,
+   "medpseg": 0,
+   "tfenet": 0,
+   "p_airway": 0.5259,
+   "n_val_voxels": 64054
+  },
+  {
+   "pattern": 21,
+   "airmorph_votes": 5,
+   "medpseg": 0,
+   "tfenet": 1,
+   "p_airway": 0.6884,
+   "n_val_voxels": 80510
+  },
+  {
+   "pattern": 22,
+   "airmorph_votes": 5,
+   "medpseg": 1,
+   "tfenet": 0,
+   "p_airway": 0.7043,
+   "n_val_voxels": 199929
+  },
+  {
+   "pattern": 23,
+   "airmorph_votes": 5,
+   "medpseg": 1,
+   "tfenet": 1,
+   "p_airway": 0.9789,
+   "n_val_voxels": 4258252
+  }
+ ]
+}

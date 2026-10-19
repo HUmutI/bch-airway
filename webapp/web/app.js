@@ -352,10 +352,10 @@ const AirwayApp = (() => {
         $("legend").innerHTML =
           `<div class="ramp" style="background:linear-gradient(90deg, ${grad})"></div>` +
           `<span class="ramp-lab"><b>0 %</b> one model, likely wrong</span>` +
-          `<span class="ramp-lab"><b>50 %</b> two models, or a split AirMorph vote</span>` +
+          `<span class="ramp-lab"><b>50 %</b> two models, or a split AirMorph-R vote</span>` +
           `<span class="ramp-lab"><b>100 %</b> all models agree</span>` +
           (c.mean != null ? `<span class="ramp-stat">mean ${Math.round(c.mean)} % · ${c.low != null ? Math.round(c.low) : "–"} % of the mask below 50 %</span>` : "") +
-          `<span class="more">P(airway) given which models marked the voxel, calibrated on ATM'22.</span>`;
+          `<span class="more">P(airway) given which models marked the voxel, calibrated on ATM'26.</span>`;
         return;
       }
       const keys = Object.keys(o.colours);

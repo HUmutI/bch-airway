@@ -57,13 +57,14 @@
       only as long as needed to serve them.</p>
   </div>
 
-  <footer>Method: union of AirMorph, MEDPSeg and TfeNet with seeded component selection, then
-    a graph transformer for branch naming. Each voxel carries a confidence: the probability that it is
-    airway given which of the three models (and how many of AirMorph's five networks) marked it,
-    calibrated on the ATM'22 validation set. Research prototype.</footer>
+  <footer>Method: union of AirMorph-R (our reimplementation of AirMorph), MEDPSeg-R (MEDPSeg retrained
+    on our training data) and TfeNet, keeping the connected component that overlaps AirMorph-R most
+    (anchored selection), then a graph transformer for branch naming. Each voxel carries a confidence: the
+    probability that it is airway given which of the three models (and how many of AirMorph-R's five
+    networks) marked it, calibrated on the ATM'26 validation set. Research prototype.</footer>
   <footer class="credit">Airway segmentation and branch labelling · QUIN Lab, Boston Children's Hospital · built by Hüseyin Umut Işık</footer>
 </div>
-<script src="/static/app.js?v=17"></script>
+<script src="/static/app.js?v=18"></script>
 <script>AirwayApp.upload();</script>
 </body>
 </html>
