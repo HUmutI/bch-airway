@@ -27,10 +27,21 @@ files = ["airway_bin.nii.gz", "medpseg_airway.nii.gz", "tfenet_airway.nii.gz"]
 # names are in the caption, which reads each panel in order anyway.
 titles = ["(a)", "(b)", "(c)", "(d)", "(e)"]
 
+# MEDPSEG_PATH swaps in another MEDPSeg mask on the same grid (e.g. MEDPSeg-R); the final
+# mask is then recomputed with the method's rule instead of read from union3_lcc.nii.gz.
+MEDPSEG_PATH = os.environ.get("MEDPSEG_PATH")
 masks, spacing = [], None
 for f in files:
-    m, sp = sr.load_lps(os.path.join(D, f)); masks.append(m > 0); spacing = sp
-final, _ = sr.load_lps(os.path.join(D, "union3_lcc.nii.gz")); final = final > 0
+    path = MEDPSEG_PATH if (MEDPSEG_PATH and f == "medpseg_airway.nii.gz") else os.path.join(D, f)
+    m, sp = sr.load_lps(path); masks.append(m > 0); spacing = sp
+if MEDPSEG_PATH:
+    lab, _ = ndimage.label(masks[0] | masks[1] | masks[2], structure=ndimage.generate_binary_structure(3, 1))
+    hit = lab[masks[0]]; hit = hit[hit > 0]
+    final = lab == int(np.bincount(hit).argmax())          # anchored selection, Eq. (1)
+else:
+    final, _ = sr.load_lps(os.path.join(D, "union3_lcc.nii.gz")); final = final > 0
+# volumes of the unclipped masks (the inlet clip below is display only)
+raw_masks, raw_final = [m.copy() for m in masks], final.copy()
 lung, _ = sr.load_lps(os.path.join(D, "lunglobe.nii.gz")); lung = lung > 0
 
 # thoracic-inlet clip, applied identically to every panel
@@ -125,6 +136,9 @@ def seeded(mask, seed):
 # AirMorph seed, which is the airway alone. The last column is already the
 # result of that rule, so it repeats unchanged and shows the two rows agreeing.
 seed = masks[0]
+_r = raw_masks; _u = _r[0] | _r[1] | _r[2]
+full_vols = [[ml(_r[0]), ml(_r[1]), ml(_r[2]), ml(_u), ml(raw_final)],
+             [ml(seeded(_r[0], _r[0])), ml(seeded(_r[1], _r[0])), ml(seeded(_r[2], _r[0])), ml(seeded(_u, _r[0]))]]
 rows = [
     [(masks[0], None), (masks[1], None), (masks[2], None),
      (union, None), (final, "#1baf7a")],
@@ -198,9 +212,10 @@ imgs = [[im[int(r0 * im.shape[0]):int(r1 * im.shape[0]),
 aspects = [im[0].shape[0] / im[0].shape[1] for im in imgs]
 print("  row aspects after cropping:", [round(a, 3) for a in aspects])
 
-dices = dice_table()
+LABEL = os.environ.get("PANEL_LABEL", "dice")             # "volume": mL of the unclipped masks
+dices = dice_table() if LABEL == "dice" and not MEDPSEG_PATH else None
 for r in range(2):
-    print(f"  row {r+1} dice:", [f"{v:.1f}" for v in dices[r]])
+    print(f"  row {r+1}:", [f"{v:.1f}" for v in (dices or full_vols)[r]])
 NCOL = 5
 PANEL_W = 15.2 / NCOL
 fig_h = PANEL_W * sum(aspects) + 1.5
@@ -214,7 +229,8 @@ for r in range(2):
             continue
         ax.imshow(imgs[r][c])
         # the letter and the Dice under the panel; volumes are in the caption text
-        ax.text(0.5, -0.03, f"{letters[r][c]}  Dice {dices[r][c]:.1f}", transform=ax.transAxes,
+        txt = f"Dice {dices[r][c]:.1f}" if dices else f"{full_vols[r][c]:.1f} mL"
+        ax.text(0.5, -0.03, f"{letters[r][c]}  {txt}", transform=ax.transAxes,
                 ha="center", va="top", fontsize=24, color="#1a1a19")
 fig.subplots_adjust(wspace=0.015, hspace=0.18, left=0.005, right=0.995,
                     top=0.995, bottom=0.06)

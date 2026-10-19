@@ -51,6 +51,8 @@ FORMATS = os.environ.get("FIG_FORMATS", "pdf,png").split(",")
 # centres below the 0.5 level and the render breaks connected branches apart, so
 # the surface is taken from a signed distance field instead.
 SDF_CASES = {"sub-0012_acc-0295"}
+if os.environ.get("SDF_ALL"):                       # SDF surface for every row (thin distal branches stay connected)
+    SDF_CASES |= {cid for _, cid, *_ in CASES}
 if os.environ.get("SDF_ALL_PED"):
     SDF_CASES |= {cid for split, cid, *_ in CASES if split.startswith("pediatric")}
 USE_SDF = False
@@ -65,6 +67,29 @@ def retint(panel, old, new):
     """Re-colour a render_plain panel: recover the shading luminance from `old`, apply `new`."""
     lum = panel[..., 0:1] / (old[0] * 1.45)
     return np.dstack([np.clip(lum * new * 1.45, 0, 1), panel[..., 3]])
+
+
+# FUSED_CACHE=<dir> (fusion_uncertainty_run/cache_medpseg_r): take the fused mask F and its vote
+# patterns from medpseg_r_confidence.py (MEDPSeg-R members) instead of the original study cache, and
+# LUT_JSON=<file> the confidence table refitted with them.
+FUSED_CACHE = os.environ.get("FUSED_CACHE")
+LUT_JSON = os.environ.get("LUT_JSON")
+
+
+def load_case(split, cid):
+    c = dict(common.load_cached(split, cid))
+    if FUSED_CACHE:
+        with np.load(os.path.join(FUSED_CACHE, split, cid, "fused.npz")) as z:
+            c["M"], c["pattern"] = z["F"].astype(bool), z["pattern"]
+    return c
+
+
+def lut_table():
+    if not LUT_JSON:
+        return common.pattern_table("val")
+    rows = json.load(open(LUT_JSON))["table"]
+    p = np.array([np.nan if r["p_airway"] is None else r["p_airway"] for r in sorted(rows, key=lambda r: r["pattern"])])
+    return {"p": p}
 
 
 def to_lps(a):
@@ -126,8 +151,8 @@ def dice(a, b):
 def panels_for(split, cid, render_mm):
     global USE_SDF
     USE_SDF = cid in SDF_CASES
-    c = common.load_cached(split, cid)
-    table = common.pattern_table("val")
+    c = load_case(split, cid)
+    table = lut_table()
     conf = common.confidence_from_pattern(c["pattern"], "calibrated", table)
     M, gt = c["M"], c["gt"].astype(bool)
     R = np.load(os.path.join(REFINED, split.replace("_v3", ""), f"ATM26_{cid}.npz"))["mask"].astype(bool)
@@ -163,7 +188,7 @@ def missed_panel(split, cid, render_mm):
     branches are exactly the undetected branches counted by BND."""
     global USE_SDF
     USE_SDF = cid in SDF_CASES
-    c = common.load_cached(split, cid)
+    c = load_case(split, cid)
     M, gt = c["M"].astype(bool), c["gt"].astype(bool)
     par, skel = c["gt_parsing"].astype(np.int64), c["gt_skeleton"].astype(bool)
     lab_b = np.where(skel, par, 0)
