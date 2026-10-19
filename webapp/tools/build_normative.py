@@ -83,6 +83,13 @@ def main():
         }
         per_case[cid] = m
 
+    # airway-to-lung ratio, as computed for the cohort manuscript (cohort90/04_continuous_age_analysis.py)
+    alr = os.path.join(R90, "continuous_age_2026-10", "case_table.csv")
+    for r in read(alr):
+        if r["case_id"] in per_case:
+            per_case[r["case_id"]]["alr_3"] = f(r["alr_central3"])
+            per_case[r["case_id"]]["alr_10"] = f(r["alr_10"])
+
     # from the branch table: count, deepest generation, mean tortuosity
     by_case = defaultdict(list)
     for r in branches:

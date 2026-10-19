@@ -11,7 +11,7 @@ const AirwayApp = (() => {
   let NORM = null, AGE = null;
   const loadNorm = async () => {
     if (NORM) return NORM;
-    try { NORM = await (await fetch("/static/normative.json?v=17")).json(); } catch (_) { NORM = { metrics: {}, per_generation: {} }; }
+    try { NORM = await (await fetch("/static/normative.json?v=20")).json(); } catch (_) { NORM = { metrics: {}, per_generation: {} }; }
     return NORM;
   };
   const bandOf = (age) => {
@@ -556,6 +556,7 @@ const AirwayApp = (() => {
     window._morph = m;
     $("morph-msg").textContent = "";
     const P = (key, v, gen) => pctBadge(key, v, gen);
+    const alr = m.alr || {};
 
     const stats = [
       [m.branch_count, "branches", P("branch_count", m.branch_count)],
@@ -568,9 +569,21 @@ const AirwayApp = (() => {
        xok ? "tracheal diameter (cross section)" : "tracheal diameter (inscribed)", xok ? P("trachea_mean_diameter_mm", x.trachea_mean_diameter_mm) : ""],
       [xok && x.airway_to_lung_volume_percent != null ? `${num(x.airway_to_lung_volume_percent, 2)} %` : "–", "airway / lung volume", xok ? P("airway_to_lung_volume_percent", x.airway_to_lung_volume_percent) : ""],
       [m.skeleton_fractal_dimension != null ? num(m.skeleton_fractal_dimension, 2) : "–", "skeleton fractal dimension", P("skeleton_fractal_dimension", m.skeleton_fractal_dimension)],
+      [alr.alr_3 != null ? num(alr.alr_3, 4) : "–", "airway-to-lung ratio, ALR-3", alr.alr_3 != null ? P("alr_3", alr.alr_3) : ""],
+      [alr.alr_10 != null ? num(alr.alr_10, 4) : "–", "airway-to-lung ratio, ALR-10", alr.alr_10 != null ? P("alr_10", alr.alr_10) : ""],
     ];
     let html = `<div class="stats">${stats.map(([b, s, p]) => `<div class="stat"><b>${b}</b><span>${s}</span>${p}</div>`).join("")}</div>`;
     if (AGE == null) html += `<p class="mnote">Enter the patient's age above to see each value as a percentile for age.</p>`;
+    // airway-to-lung ratio (dysanapsis): definition and anything that makes it doubtful
+    if (alr.status === "ok") {
+      const why = [...(alr.flags || []), ...(alr.alr_10_note ? [`ALR-10 not reported: ${alr.alr_10_note}`] : [])];
+      html += `<p class="mnote"><b>Airway-to-lung ratio (ALR)</b>: geometric mean airway diameter (cm) divided by the cube root of
+        the segmented lung volume (mL), as in the 90-scan cohort. ALR-3 uses the cross-section diameters of the trachea and both
+        main bronchi; ALR-10 adds seven segmental bronchi (RB1, RB4, RB6, RB10, LB1+2, LB6, LB10) and uses inscribed diameters
+        (${alr.alr_10_n_branches} of 10 found here).${why.length ? ` <span class="err">Check: ${esc(why.join("; "))}.</span>` : ""}</p>`;
+    } else if (alr.status) {
+      html += `<p class="mnote">Airway-to-lung ratio not available: ${esc(alr.reason || "")}.</p>`;
+    }
     html += `<div class="mgrid">`;
 
     // central airways

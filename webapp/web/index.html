@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Airway segmentation and branch labelling</title>
-<link rel="stylesheet" href="/static/app.css?v=19">
+<link rel="stylesheet" href="/static/app.css?v=20">
 </head>
 <body>
 <div class="wrap">
@@ -29,7 +29,7 @@
         <li><span class="ic"><svg viewBox="0 0 24 24"><path d="M12 3v7m0 0-6 5v5m6-10 6 5v5M6 15l-3 3m15-3 3 3"/></svg></span>
           <div><b>Explore</b><span>3D tree, labels, measurements</span></div></li>
       </ol>
-      <p class="hint">About ten minutes per scan; a GPU starts when you upload.</p>
+      <p class="hint"><b>Processing takes about 10 minutes per CT.</b> A GPU starts when you upload.</p>
     </div>
     <figure class="hero-img">
       <img src="/static/hero_airway.png" alt="Airway tree coloured by confidence">
@@ -69,7 +69,7 @@
       <div class="tile"><svg viewBox="0 0 24 24"><path d="M4 7h7v4H4zM13 13h7v4h-7zM4 15h5M15 7h5"/></svg><b>Branch labels</b><span>lobe and segment</span></div>
       <div class="tile"><svg viewBox="0 0 24 24"><path d="M12 3v6l-6 6v6m6-12 6 6v6" stroke-dasharray="2 2"/></svg><b>Centreline</b><span>branch tree</span></div>
       <div class="tile"><svg viewBox="0 0 24 24"><rect x="3" y="10" width="18" height="4" rx="2"/><path d="M8 10v4m5-4v4"/></svg><b>Confidence</b><span>per voxel and branch</span></div>
-      <div class="tile"><svg viewBox="0 0 24 24"><path d="M3 21h18M6 17v-5m5 5V8m5 9v-7"/></svg><b>Measurements</b><span>percentiles for age</span></div>
+      <div class="tile"><svg viewBox="0 0 24 24"><path d="M3 21h18M6 17v-5m5 5V8m5 9v-7"/></svg><b>Measurements</b><span>ALR, percentiles for age</span></div>
       <div class="tile"><svg viewBox="0 0 24 24"><path d="M4 20l4-1 10-10-3-3L5 16zM13 6l3 3"/></svg><b>ITK-SNAP bundle</b><span>for correction</span></div>
     </div>
     <p class="hint">All files are NIfTI in the orientation of the uploaded scan, with an in-browser 3D view.
@@ -81,7 +81,7 @@
     validation set.</footer>
   <footer class="credit">Airway segmentation and branch labelling · QUIN Lab, Boston Children's Hospital · built by Hüseyin Umut Işık</footer>
 </div>
-<script src="/static/app.js?v=19"></script>
+<script src="/static/app.js?v=20"></script>
 <script>AirwayApp.upload();</script>
 </body>
 </html>

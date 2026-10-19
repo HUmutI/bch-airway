@@ -38,7 +38,9 @@ def load_module(name, path):
 def clean(x):
     """JSON has no NaN."""
     if isinstance(x, dict):
-        return {k: clean(v) for k, v in x.items()}
+        # ALR is about 0.03-0.09: three decimals would leave one significant digit
+        return {k: (round(float(v), 5) if k in ("alr_3", "alr_10") and v is not None and math.isfinite(v)
+                    else clean(v)) for k, v in x.items()}
     if isinstance(x, (list, tuple)):
         return [clean(v) for v in x]
     if isinstance(x, (np.integer,)):
@@ -58,6 +60,61 @@ def fnum(rows, key):
 def agg(rows, key, fn=np.mean):
     v = fnum(rows, key)
     return float(fn(v)) if len(v) else float("nan")
+
+
+# proximal-most labelled branch of these segmental bronchi enters ALR-10
+ALR_SEGMENTAL = ["RB1", "RB4", "RB6", "RB10", "LB1+2", "LB6", "LB10"]
+ALR10_MIN_BRANCHES = 7
+
+
+def airway_lung_ratio(central, rows):
+    """Airway-to-lung ratio (dysanapsis), the definitions of the 90-scan cohort
+    (cohort90/04_continuous_age_analysis.py), so the cohort percentiles apply:
+
+      ALR-3  = geometric mean of the cross-section diameters of trachea, LMB, RMB (cm)
+               / cube root of the segmented lung volume (cm^3)
+      ALR-10 = geometric mean of the inscribed (EDT) diameters of trachea, LMB, RMB and the
+               proximal-most branch of RB1, RB4, RB6, RB10, LB1+2, LB6, LB10 (cm)
+               / cube root of the segmented lung volume; missing branches are left out.
+    Flags mark the failure seen in the cohort: a main bronchus picked as a short carina stub."""
+    x = central.get("cross_section", {}) if central.get("status") == "ok" else {}
+    tlv = x.get("lung_volume_ml")
+    cal = [x.get(f"{k}_mean_diameter_mm") for k in ("trachea", "lmb", "rmb")]
+    if not tlv or not all(v and math.isfinite(v) for v in cal + [tlv]):
+        return {"status": "not available",
+                "reason": "needs the trachea, both main bronchi and the lung volume"}
+    tlv_cm = tlv ** (1 / 3)
+    # the cohort's own selection, pandas included: when two pieces of a segment share the
+    # lowest generation, which one is taken depends on the sort, and the cohort was built so
+    import pandas as pd
+    br = pd.DataFrame([{k: r.get(k) for k in ("segmental_name", "branch_name", "generation", "diameter_mean_mm")}
+                       for r in rows]).astype({"generation": float, "diameter_mean_mm": float})
+    br = br[br.segmental_name.isin(ALR_SEGMENTAL) & (br.branch_name == br.segmental_name)]
+    first = br.sort_values("generation").groupby("segmental_name").first()
+    seg = {s: float(first.loc[s, "diameter_mean_mm"]) for s in ALR_SEGMENTAL
+           if s in first.index and math.isfinite(first.loc[s, "diameter_mean_mm"])}
+    edt = [central[k]["diameter_edt_mean_mm"] for k in ("trachea", "lmb", "rmb")]
+    ten = np.array([d for d in edt + list(seg.values()) if d and math.isfinite(d)]) / 10
+    flags = []
+    for k, c, e in zip(("lmb", "rmb"), cal[1:], edt[1:]):
+        length = x.get(f"{k}_length_mm")
+        if length is not None and length < 6:
+            flags.append(f"{k.upper()} segment only {length:.1f} mm long (possible carina stub)")
+        if e and not 1.0 <= c / e <= 1.6:
+            flags.append(f"{k.upper()} cross-section / inscribed diameter {c / e:.2f}, outside the cohort range 1.07-1.55")
+    if cal[1] > cal[0] or cal[2] > cal[0]:
+        flags.append("a main bronchus is wider than the trachea")
+    # every cohort scan had at least 7 of the 10 branches; with fewer the segmental labels
+    # have failed and ALR-10 is no longer the cohort's quantity
+    ok10 = len(ten) >= ALR10_MIN_BRANCHES
+    return {"status": "ok",
+            "alr_3": float(np.exp(np.mean(np.log(np.array(cal) / 10))) / tlv_cm),
+            "alr_10": float(np.exp(np.mean(np.log(ten))) / tlv_cm) if ok10 else None,
+            "alr_10_note": None if ok10 else (f"only {len(ten)} of the 10 branches were found; "
+                                              f"the cohort always had at least {ALR10_MIN_BRANCHES}"),
+            "alr_10_n_branches": int(len(ten)),
+            "alr_10_segmental_mm": seg,
+            "lung_volume_ml": tlv, "flags": flags}
 
 
 # --------------------------------------------------------- central topology
@@ -277,6 +334,7 @@ def main():
         central = {"status": "not available", "reason": str(e)[:300]}
         print(f"central airways skipped: {e}", flush=True)
     out["central"] = central
+    out["alr"] = airway_lung_ratio(central, rows)
 
     # ---- sanity flags for the reader (the package stage adds its own) -------
     qc = []
@@ -288,6 +346,9 @@ def main():
         qc.append({"code": "shallow_tree", "level": "warn",
                    "text": f"The deepest branch is generation {out['max_generation']}; the normative cohort "
                            "reaches 12 to 13. Peripheral airways were probably not segmented."})
+    if out["alr"].get("flags"):
+        qc.append({"code": "alr_check", "level": "warn",
+                   "text": "Check the airway-to-lung ratio: " + "; ".join(out["alr"]["flags"]) + "."})
     broken = sum(1 for r in rows if "disconnected-centerline" in str(r.get("geometry_qc_flags", "")))
     if rows and broken > 0.1 * len(rows):
         qc.append({"code": "fragmented_centrelines", "level": "info",

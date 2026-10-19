@@ -1,0 +1,8 @@
+# v8 (2026-10-19): v7 plus the airway-to-lung ratio (ALR-3, ALR-10) in the morphometry stage and on the page.
+#   docker build -f deploy/Dockerfile.worker-v8 -t airway-worker:v8 .
+FROM airway-worker:v7
+ENV A=/opt/airway
+COPY worker $A/app/worker
+COPY api $A/app/api
+COPY web $A/app/web
+COPY config.py README.md $A/app/
