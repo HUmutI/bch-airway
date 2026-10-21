@@ -82,6 +82,14 @@ window over the whole volume. Two changes, both in `config.py`:
 
 Expected wall time on the A5000 drops from about 11 minutes to about 6.
 
+## Running it on your own machine
+
+On any Ubuntu machine with an NVIDIA GPU (16 GB or more), the hosted site's two
+containers run with one command, results stay local:
+`docker compose -f deploy/compose.local.yml up -d`, then http://localhost:8000.
+Setup (Docker, NVIDIA toolkit, access to the worker image) is in
+`deploy/README_LOCAL.md`.
+
 ## Moving to AWS
 
 See `deploy/README_AWS.md` for the full runbook. Short version:

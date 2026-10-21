@@ -1,0 +1,38 @@
+# The whole site on one Ubuntu machine with an NVIDIA GPU, the same containers as the
+# hosted site. Open http://localhost:8000 after
+#
+#   docker compose -f deploy/compose.local.yml up -d
+#
+# Uploads and results stay on this machine, in webapp/jobs. See README_LOCAL.md.
+name: airway
+services:
+  api:
+    image: airway-api:local
+    build: { context: .., dockerfile: deploy/Dockerfile.api }
+    restart: unless-stopped
+    # only this computer can open the site; set AIRWAY_BIND=0.0.0.0 to serve the network
+    ports: ["${AIRWAY_BIND:-127.0.0.1}:${AIRWAY_PORT:-8000}:8000"]
+    volumes:
+      - ${AIRWAY_JOBS_HOST:-../jobs}:/jobs
+    environment:
+      AIRWAY_BACKEND: local
+      AIRWAY_MAX_UPLOAD_MB: ${AIRWAY_MAX_UPLOAD_MB:-1500}
+
+  worker:
+    image: ${AIRWAY_WORKER_IMAGE:-ghcr.io/humuti/airway-worker:v8}
+    restart: unless-stopped
+    volumes:
+      - ${AIRWAY_JOBS_HOST:-../jobs}:/jobs
+    environment:
+      AIRWAY_PARALLEL: ${AIRWAY_PARALLEL:-1}
+      AIRWAY_TFENET_CROP: ${AIRWAY_TFENET_CROP:-1}
+    shm_size: "8gb"
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    # 0 keeps every result; set e.g. AIRWAY_RETAIN_DAYS=30 to delete older jobs
+    command: ["--retain-days", "${AIRWAY_RETAIN_DAYS:-0}"]
