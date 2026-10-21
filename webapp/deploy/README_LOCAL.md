@@ -49,14 +49,10 @@ macOS and Windows without an NVIDIA GPU are not supported.
    cd airway-seg-and-labelling/webapp
    ```
 
-3. **Access to the worker image.** The worker image (models and their
-   environments, about 20 GB) is a private package on the GitHub Container
-   Registry. Ask Umut for read access, then create a GitHub personal access
-   token (classic) with only the `read:packages` scope and log in once:
-
-   ```bash
-   echo <token> | docker login ghcr.io -u <your-github-username> --password-stdin
-   ```
+3. **The worker image** (models and their environments, about 20 GB) is public on
+   the GitHub Container Registry, `ghcr.io/humuti/airway-seg-worker`; the next step
+   downloads it, no login needed. Third-party licenses are listed in
+   `deploy/THIRD_PARTY_NOTICES.md` (also inside the image).
 
 ## Start, use, stop
 
@@ -87,7 +83,7 @@ Set them in front of the `up` command, e.g. `AIRWAY_PORT=8080 docker compose ...
 | `AIRWAY_BIND` | `127.0.0.1` | `0.0.0.0` lets other computers on the network open the site. It has no password, so only do this on a trusted network |
 | `AIRWAY_JOBS_HOST` | `../jobs` (= `webapp/jobs`) | where uploads and results are stored |
 | `AIRWAY_RETAIN_DAYS` | `0` | delete jobs older than this many days; 0 keeps everything |
-| `AIRWAY_WORKER_IMAGE` | `ghcr.io/humuti/airway-worker:v8` | worker image to use |
+| `AIRWAY_WORKER_IMAGE` | `ghcr.io/humuti/airway-seg-worker:v8` | worker image to use |
 
 ## Updating
 
@@ -106,8 +102,8 @@ Use de-identified scans only, as on the hosted site. Everything is stored in
 
 - `could not select device driver "nvidia"`: the NVIDIA container toolkit is
   missing or Docker was not restarted (step 1).
-- `denied` or `unauthorized` when pulling: the `docker login ghcr.io` step is
-  missing, or the token lacks `read:packages`, or your account has no access yet.
+- `denied` or `unauthorized` when pulling: an old, expired `docker login ghcr.io`
+  is in the way; run `docker logout ghcr.io` and pull again.
 - A job fails with `CUDA out of memory`: the GPU has less than 16 GB, or
   another program is using it (`nvidia-smi`).
 - `Bus error` in the worker log: the shared-memory setting was removed from

@@ -1,0 +1,8 @@
+# The public worker image: v8 unchanged plus the third-party notices, published as its own
+# package so the private one (with older tags) stays private.
+#   docker build -f deploy/Dockerfile.worker-public -t ghcr.io/humuti/airway-seg-worker:v8 .
+FROM airway-worker:v8
+COPY deploy/THIRD_PARTY_NOTICES.md /opt/airway/THIRD_PARTY_NOTICES.md
+LABEL org.opencontainers.image.title="Airway segmentation and branch labelling, worker" \
+      org.opencontainers.image.description="AirMorph-R, MEDPSeg-R and TfeNet with anchored union fusion, labelling and morphometry. Research use only. See /opt/airway/THIRD_PARTY_NOTICES.md" \
+      org.opencontainers.image.vendor="QUIN Lab, Boston Children's Hospital"
