@@ -45,7 +45,6 @@ macOS and Windows without an NVIDIA GPU are not supported.
 2. **The code**
 
    ```bash
-   # private for now: ask Umut (huseyinumut2004@gmail.com) for access
    git clone https://github.com/HUmutI/bch-airway.git
    cd bch-airway/webapp
    ```
