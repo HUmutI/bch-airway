@@ -45,8 +45,9 @@ macOS and Windows without an NVIDIA GPU are not supported.
 2. **The code**
 
    ```bash
-   git clone https://github.com/quin-med-harvard-edu/airway-seg-and-labelling.git
-   cd airway-seg-and-labelling/webapp
+   # private for now: ask Umut (huseyinumut2004@gmail.com) for access
+   git clone https://github.com/HUmutI/bch-airway.git
+   cd bch-airway/webapp
    ```
 
 3. **The worker image** (models and their environments, about 20 GB) is public on
@@ -57,7 +58,7 @@ macOS and Windows without an NVIDIA GPU are not supported.
 ## Start, use, stop
 
 ```bash
-cd airway-seg-and-labelling/webapp
+cd bch-airway/webapp
 docker compose -f deploy/compose.local.yml up -d      # first time: downloads 20 GB
 ```
 
