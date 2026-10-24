@@ -528,13 +528,19 @@ const AirwayApp = (() => {
     // 2. a coarse CT quickly (older results do not have it), then the labels
     let low = null;
     try { busy("Loading a preview of the CT…"); say("loading a preview of the CT…"); low = await loadCT("image_view_lowres.nii.gz"); }
-    catch (_) { low = null; }
+    catch (e) { console.warn("preview CT not loaded", e); low = null; }
     if (low) {
-      await useCT(low);
-      setLayout(layout);
-      await applyVisibility();
-      await setOverlay("airway");
-      if (haveMesh) legend(overlayKey);
+      try {
+        await useCT(low);
+        setLayout(layout);
+        await applyVisibility();
+        await setOverlay("airway");
+        if (haveMesh) legend(overlayKey);
+      } catch (e) {                            // keep going with the full CT instead of hanging here
+        console.warn("preview CT not shown", e); say(`preview failed (${e && e.message ? e.message : e}); loading the full CT…`);
+        try { if (nv.volumes.includes(low)) nv.removeVolume(low); } catch (_) {}
+        low = null;
+      }
     }
 
     // 3. the full-resolution CT, swapped in underneath the labels
@@ -546,7 +552,7 @@ const AirwayApp = (() => {
       if (!low) { setLayout(layout); await applyVisibility(); await setOverlay("airway"); if (haveMesh) legend(overlayKey); }
       else await applyVisibility();
     } catch (e) {
-      if (!low) { busy(null); fail("CT", e); return; }
+      if (!low) { busy(null); fail("CT", e); say(`CT could not be shown: ${e && e.message ? e.message : e}`); return; }
       console.warn("full-resolution CT not loaded, keeping the preview", e);
     }
     busy(null);
