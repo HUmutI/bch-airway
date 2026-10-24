@@ -61,22 +61,37 @@ const AirwayApp = (() => {
     drop.addEventListener("drop", ev => pick(ev.dataTransfer.files[0]));
     ack.onchange = ready;
 
+    // The file goes up in 8 MB pieces, one request each: the hosting gateway cuts any
+    // single request at 150 s, which a 300 MB CT on a slow link does not fit.
+    const fail = (m) => { $("err").textContent = m; $("hint").textContent = ""; go.disabled = false; };
+    const detail = async (r, fallback) => { try { return (await r.json()).detail || fallback; } catch (_) { return fallback; } };
+    const send = async (url, opts, tries = 4) => {
+      for (let t = 1; ; t++) {
+        let r = null;
+        try { r = await fetch(url, opts); } catch (_) { r = null; }        // network error
+        if (r && r.ok) return r;
+        if (r && r.status < 500) throw new Error(await detail(r, `Upload failed (${r.status}).`));
+        if (t >= tries) throw new Error(r ? `Upload failed (${r.status}).` : "Network error.");
+        await new Promise(res => setTimeout(res, 1500 * t));
+      }
+    };
     go.onclick = async () => {
       go.disabled = true; $("err").textContent = "";
-      const fd = new FormData(); fd.append("file", file, file.name);
-      if ($("age").value !== "") fd.append("age_years", $("age").value);
-      const xhr = new XMLHttpRequest();
-      xhr.open("POST", "/api/jobs");
-      xhr.upload.onprogress = (e) => {
-        if (e.lengthComputable) $("hint").textContent = `Uploading ${Math.round(100 * e.loaded / e.total)}%`;
-      };
-      xhr.onload = () => {
-        if (xhr.status === 200) { location.href = `/jobs/${JSON.parse(xhr.responseText).id}`; return; }
-        let m = "Upload failed."; try { m = JSON.parse(xhr.responseText).detail || m; } catch (_) {}
-        $("err").textContent = m; $("hint").textContent = ""; go.disabled = false;
-      };
-      xhr.onerror = () => { $("err").textContent = "Network error."; go.disabled = false; };
-      xhr.send(fd);
+      try {
+        let fd = new FormData(); fd.append("filename", file.name);
+        const r = await send("/api/uploads", { method: "POST", body: fd });
+        const { id, chunk_bytes } = await r.json();
+        const n = Math.max(1, Math.ceil(file.size / chunk_bytes));
+        for (let i = 0; i < n; i++) {
+          $("hint").textContent = `Uploading ${Math.round(100 * i / n)}%`;
+          await send(`/api/uploads/${id}/${i}`, { method: "PUT", body: file.slice(i * chunk_bytes, (i + 1) * chunk_bytes) });
+        }
+        $("hint").textContent = "Uploading 100% · starting";
+        fd = new FormData(); fd.append("count", n); fd.append("size", file.size);
+        if ($("age").value !== "") fd.append("age_years", $("age").value);
+        const done = await send(`/api/uploads/${id}/finish`, { method: "POST", body: fd }, 1);
+        location.href = `/jobs/${(await done.json()).id}`;
+      } catch (e) { fail(e.message || "Upload failed."); }
     };
   }
 

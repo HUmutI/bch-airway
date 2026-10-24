@@ -89,8 +89,28 @@ def parse_age(age):
     return round(v, 2)
 
 
+def _start_job(request, d, job_id, name, kind, dst, size, age):
+    """Convert the upload to input.nii.gz if needed, write the queued status, wake the GPU."""
+    try:
+        convert.to_nifti(dst, kind, os.path.join(d, "input.nii.gz"))
+    except ValueError as e:
+        import shutil
+        shutil.rmtree(d, ignore_errors=True)
+        raise HTTPException(400, str(e))
+    status = {"id": job_id, "state": "queued", "filename": name, "size_bytes": size,
+              "created": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+              "client": request.client.host if request.client else None,
+              "age_years": age,
+              "progress": 0.0, "message": QUEUED_MSG, "error": None}
+    json.dump(status, open(os.path.join(d, "status.json"), "w"), indent=1)
+    wake_worker(job_id)      # may block on the volume commit
+    return {"id": job_id}
+
+
 @app.post("/api/jobs")
 async def create_job(request: Request, file: UploadFile = File(...), age_years: str = Form(None)):
+    """One-request upload (curl, scripts). Browsers use /api/uploads: the Modal gateway
+    cuts any single request at 150 s, which a 300 MB CT on a hospital link exceeds."""
     age = parse_age(age_years)
     name = os.path.basename(file.filename or "")
     ext, kind = convert.kind_of(name)
@@ -109,21 +129,107 @@ async def create_job(request: Request, file: UploadFile = File(...), age_years: 
                 fh.close(); os.remove(dst); os.rmdir(d)
                 raise HTTPException(413, f"file exceeds {C.MAX_UPLOAD_MB} MB")
             fh.write(chunk)
-    # the worker reads input.nii.gz; other formats are converted here, once
-    try:
-        await run_in_threadpool(convert.to_nifti, dst, kind, os.path.join(d, "input.nii.gz"))
-    except ValueError as e:
+    return await run_in_threadpool(_start_job, request, d, job_id, name, kind, dst, size, age)
+
+
+# ---- chunked upload: POST /api/uploads, PUT /api/uploads/{id}/{n}, POST /api/uploads/{id}/finish
+UPLOADS = "_uploads"            # under JOBS_DIR; no status.json, so the worker and /history skip it
+CHUNK_LIMIT = 64 * 1024 * 1024
+UPLOAD_ID = re.compile(r"^[a-z0-9]{16}$")
+
+
+def upload_dir(upload_id):
+    if not UPLOAD_ID.match(upload_id):
+        raise HTTPException(404, "no such upload")
+    d = os.path.join(C.JOBS_DIR, UPLOADS, upload_id)
+    if not os.path.isdir(d):
+        raise HTTPException(404, "no such upload")
+    return d
+
+
+def _purge_uploads(hours=24):
+    import shutil, time
+    root = os.path.join(C.JOBS_DIR, UPLOADS)
+    if not os.path.isdir(root):
+        return
+    for u in os.listdir(root):
+        p = os.path.join(root, u)
+        try:
+            if time.time() - os.path.getmtime(p) > 3600 * hours:
+                shutil.rmtree(p, ignore_errors=True)
+        except OSError:
+            pass
+
+
+@app.post("/api/uploads")
+def create_upload(filename: str = Form(...)):
+    name = os.path.basename(filename)
+    ext, kind = convert.kind_of(name)
+    if kind is None:
+        raise HTTPException(400, f"upload a CT volume as {convert.ACCEPTED} (DICOM: one series in a .zip)")
+    before_read()
+    _purge_uploads()
+    upload_id = secrets.token_hex(8)
+    d = os.path.join(C.JOBS_DIR, UPLOADS, upload_id)
+    os.makedirs(d, exist_ok=False)
+    json.dump({"filename": name}, open(os.path.join(d, "meta.json"), "w"))
+    after_write()
+    return {"id": upload_id, "chunk_bytes": 8 * 1024 * 1024}
+
+
+@app.put("/api/uploads/{upload_id}/{index}")
+async def put_chunk(request: Request, upload_id: str, index: int):
+    d = upload_dir(upload_id)
+    if not 0 <= index < 100000:
+        raise HTTPException(400, "bad chunk index")
+    limit = C.MAX_UPLOAD_MB * 1024 * 1024
+    have = sum(os.path.getsize(os.path.join(d, f)) for f in os.listdir(d) if f.startswith("part-"))
+    part, tmp = os.path.join(d, f"part-{index:05d}"), os.path.join(d, f"tmp-{index:05d}")
+    size = 0
+    with open(tmp, "wb") as fh:
+        async for chunk in request.stream():
+            size += len(chunk)
+            if size > CHUNK_LIMIT or have + size > limit:
+                fh.close(); os.remove(tmp)
+                raise HTTPException(413, f"file exceeds {C.MAX_UPLOAD_MB} MB")
+            fh.write(chunk)
+    os.replace(tmp, part)
+    await run_in_threadpool(after_write)      # visible to whichever container gets the next request
+    return {"index": index, "bytes": size}
+
+
+@app.post("/api/uploads/{upload_id}/finish")
+async def finish_upload(request: Request, upload_id: str, count: int = Form(...), size: int = Form(...),
+                        age_years: str = Form(None)):
+    age = parse_age(age_years)
+    before_read()                              # chunks may have landed in another container
+    d = upload_dir(upload_id)
+    name = json.load(open(os.path.join(d, "meta.json")))["filename"]
+    ext, kind = convert.kind_of(name)
+    parts = [os.path.join(d, f"part-{i:05d}") for i in range(count)]
+    missing = [i for i, p in enumerate(parts) if not os.path.isfile(p)]
+    if missing:
+        raise HTTPException(409, f"upload incomplete, missing chunk {missing[0]}")
+    have = sum(os.path.getsize(p) for p in parts)
+    extra = len([f for f in os.listdir(d) if f.startswith("part-")]) - count
+    if have != size or extra:
+        raise HTTPException(409, f"upload incomplete: {have} of {size} bytes in {count} chunks")
+
+    def assemble():
         import shutil
+        job_id = secrets.token_hex(8)
+        jd = os.path.join(C.JOBS_DIR, job_id)
+        os.makedirs(jd, exist_ok=False)
+        dst = os.path.join(jd, "input.nii.gz" if ext == ".nii.gz" else "upload" + ext)
+        size = 0
+        with open(dst, "wb") as out:
+            for p in parts:
+                with open(p, "rb") as fh:
+                    shutil.copyfileobj(fh, out, 1 << 20)
+                size += os.path.getsize(p)
         shutil.rmtree(d, ignore_errors=True)
-        raise HTTPException(400, str(e))
-    status = {"id": job_id, "state": "queued", "filename": name, "size_bytes": size,
-              "created": datetime.now(timezone.utc).isoformat(timespec="seconds"),
-              "client": request.client.host if request.client else None,
-              "age_years": age,
-              "progress": 0.0, "message": QUEUED_MSG, "error": None}
-    json.dump(status, open(os.path.join(d, "status.json"), "w"), indent=1)
-    await run_in_threadpool(wake_worker, job_id)      # may block on the volume commit
-    return {"id": job_id}
+        return _start_job(request, jd, job_id, name, kind, dst, size, age)
+    return await run_in_threadpool(assemble)
 
 
 @app.get("/api/jobs/{job_id}")
