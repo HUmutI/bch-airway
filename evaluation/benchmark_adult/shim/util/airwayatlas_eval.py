@@ -1,4 +1,6 @@
 # -*- coding: utf-8 -*-
+# Copied from AirMorph (Zhang et al., https://github.com/EndoluminalSurgicalVision-IMR/AirMorph),
+# util/airwayatlas_eval.py, unchanged; redistributed with the authors' permission (see NOTICE.md).
 
 
 import numpy as np

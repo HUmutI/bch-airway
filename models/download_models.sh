@@ -5,8 +5,8 @@
 #   ./models/download_models.sh                # -> models/tarballs/
 #   ./models/download_models.sh /some/dir      # -> /some/dir
 #
-# Needs `gh` logged in to an account that can read the repo (the repo is
-# private), or set MODELS_URL to a mirror that serves the same files.
+# Needs `gh` logged in (the repo and its Release are public), or set MODELS_URL
+# to a mirror that serves the same files.
 set -euo pipefail
 
 REPO="${MODELS_REPO:-quin-med-harvard-edu/airway-seg-and-labelling}"   # mirror: HUmutI/bch-airway

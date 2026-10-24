@@ -72,7 +72,7 @@ ones used.
 ## Data
 
 None of it is included. `FIGURES/` holds renders of one examination's airway
-surface, which is part of why this repository is private.
+surface; the examination itself is not in the repository.
 
 The adult benchmark is the Airway Tree Modeling challenge (ATM'22), which is
 public and must be obtained from the organisers. The pediatric examinations are
@@ -119,9 +119,9 @@ The trainer's docstring states each choice the paper does not, so the procedure
 can be argued with rather than guessed at.
 
 It imports AirMorph's own modules, `networks/transformer.py` and `models/`, and
-does not contain them. That code carries no licence in the release we have, so
-it is not ours to redistribute. Obtain it from the authors and drop
-`airmorph_reconstruction/` in as `training/`. The checkpoint it writes has the
+does not contain them. The AirMorph code is used with its authors' permission
+(see `NOTICE.md` at the repository root); obtain it from their repository and
+drop `airmorph_reconstruction/` in as `training/`. The checkpoint it writes has the
 layout the released inference path loads, so a model trained here runs in that
 pipeline unchanged.
 

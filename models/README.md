@@ -58,8 +58,10 @@ labelling checkpoint are the lab's own work.
 
 The tarballs also carry third-party material under its authors' terms: the
 MEDPSeg and TfeNet code and weights, and the AirMorph segmentation code with
-its five checkpoints and the `lungmask` model. Check those licences before
-making the repository or the Release public.
+its five checkpoints and the `lungmask` model. The AirMorph code is
+redistributed with its authors' permission; the weights trained on ATM'22/ATM'26
+data are CC BY-NC 4.0 (`LICENSE-WEIGHTS.md`); everything else is MIT or
+Apache-2.0 (`NOTICE.md`, `webapp/deploy/THIRD_PARTY_NOTICES.md`).
 
 ## Provenance
 

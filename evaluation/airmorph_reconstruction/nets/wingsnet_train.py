@@ -1,4 +1,6 @@
 # -*- coding: utf-8 -*-
+# Derived from AirMorph's networks/airway_network_wingsnet.py (Zhang et al.,
+# https://github.com/EndoluminalSurgicalVision-IMR/AirMorph), used with the authors' permission.
 """Training-mode WingsNet: same weights, more outputs.
 
 `networks.airway_network_wingsnet.WingsNet_v3.forward` returns only the decoder-side

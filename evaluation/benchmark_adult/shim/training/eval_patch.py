@@ -1,4 +1,7 @@
 # -*- coding: utf-8 -*-
+# Contains small adapted copies from AirMorph (Zhang et al.,
+# https://github.com/EndoluminalSurgicalVision-IMR/AirMorph), redistributed with the authors'
+# permission (see NOTICE.md at the repository root).
 """Local workarounds for two blockers in the provided evaluation code.
 
 Neither provided file is modified. Both issues are reported in training/README.md and a

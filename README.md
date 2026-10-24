@@ -38,8 +38,8 @@ follow from the named tree.
 The only path that needs nothing from izmir.
 
 ```bash
-git clone https://github.com/quin-med-harvard-edu/airway-seg-and-labelling.git bch-airway && cd bch-airway
-gh auth login                                            # your own GitHub account; it must have access to this private repo
+git clone https://github.com/HUmutI/bch-airway.git && cd bch-airway
+gh auth login                                            # any GitHub account; the Release assets are public
 ./models/download_models.sh webapp/deploy/vendor        # 3 tarballs, 520 MB, from the repo's Release
 cp pipeline/fuse_union3.py webapp/deploy/vendor/
 mkdir -p webapp/deploy/vendor/scripts && cp pipeline/scripts/09_airmorph_morphometry.py cohort90/axis_geometry.py webapp/deploy/vendor/scripts/
@@ -97,10 +97,10 @@ Needs nvcc 12.4 and a matching driver.
 
 ## Where the repository lives
 
-Canonical: https://github.com/quin-med-harvard-edu/airway-seg-and-labelling
-(the lab organisation). Mirror: https://github.com/HUmutI/bch-airway. Both
-private; both carry the `models-v1` Release. Push to both
-(`git push origin main && git push bch main` from the izmir checkout).
+Home: https://github.com/HUmutI/bch-airway (public, carries the `models-v1`
+Release). The lab organisation's https://github.com/quin-med-harvard-edu/airway-seg
+holds the paper's method release (fusion, training, evaluation) without the web app.
+Third-party code and weights: `NOTICE.md` and `LICENSE-WEIGHTS.md`.
 
 ## People
 
