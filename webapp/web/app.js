@@ -507,11 +507,19 @@ const AirwayApp = (() => {
     let haveMesh = false;
     try {
       busy("Loading the airway surface…"); say("loading the airway surface…");
-      await nv.loadMeshes(meshList);
+      await nv.loadMeshes(meshList.slice(0, 1));   // the airway surface alone: it must not depend on the lobes
       haveMesh = true;
       showMeshes();
       nv.setSliceType(4);                    // nothing but the surface yet: show it in 3D
     } catch (e) { fail("surfaces", e); }
+    for (const m of meshList.slice(1)) {         // lobe surfaces one by one, each optional
+      try {
+        if (window.NVMesh && window.NVMesh.loadFromUrl) {
+          nv.addMesh(await window.NVMesh.loadFromUrl({ url: m.url, gl: nv.gl, name: m.name, rgba255: m.rgba255, visible: false }));
+        }
+      } catch (e) { console.warn("lobe surface not loaded", m.name, e); }
+    }
+    if (haveMesh) showMeshes();
     // the label-coloured copies of the surface, each optional
     const NVMesh = window.NVMesh;
     const loadColoured = async () => {

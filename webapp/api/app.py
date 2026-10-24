@@ -305,7 +305,9 @@ def get_file(job_id: str, name: str):
         raise HTTPException(404, "no such file")
     p = os.path.join(job_dir(job_id), "results", name)
     if not os.path.exists(p):
-        raise HTTPException(404, "not ready")
+        before_read(force=True)                  # a file of a finished job must not 404 transiently
+        if not os.path.exists(p):
+            raise HTTPException(404, "not ready")
     media = MEDIA[os.path.splitext(name)[1]]
     return FileResponse(p, media_type=media, filename=name)
 

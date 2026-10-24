@@ -31,11 +31,26 @@ def _volume():
     return _vol
 
 
-def before_read():
-    """See the GPU function's latest commit. Cheap; called per request."""
-    if C.BACKEND == "modal":
+_reload_lock = threading.Lock()
+_reloaded_at = 0.0
+
+
+def before_read(force=False):
+    """See the GPU function's latest commit. Called per request, but a reload is
+    done at most every few seconds: concurrent reloads while another request is
+    streaming a file fail with "open files" and leave the mount momentarily
+    inconsistent (files of a finished job answered 404)."""
+    global _reloaded_at
+    if C.BACKEND != "modal":
+        return
+    if not force and time.time() - _reloaded_at < 3.0:
+        return
+    with _reload_lock:
+        if not force and time.time() - _reloaded_at < 3.0:
+            return
         try:
             _volume().reload()
+            _reloaded_at = time.time()
         except Exception as exc:                                 # noqa: BLE001
             print(f"cloud: volume reload failed: {exc}", flush=True)
 
