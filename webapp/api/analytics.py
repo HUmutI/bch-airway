@@ -6,7 +6,7 @@ the Modal Volume). A visitor is the SHA-256 of client IP + user agent, truncated
 no cookies, no names. Uploads are counted from the job directories themselves,
 so jobs made before this module existed are included.
 """
-import hashlib, json, os, socket, threading
+import hashlib, json, os, socket, threading, time
 from collections import defaultdict
 from datetime import datetime, timezone
 
@@ -16,6 +16,25 @@ from api.cloud import after_write, before_read
 DIR = "_analytics"
 _lock = threading.Lock()
 _container = (os.environ.get("MODAL_TASK_ID") or socket.gethostname())[-12:]
+_commit_pending = False
+COMMIT_DELAY_S = 30      # page views are committed in batches; uploads at once
+
+
+def _commit_later():
+    """One Volume commit per COMMIT_DELAY_S at most, however many views arrive."""
+    global _commit_pending
+    with _lock:
+        if _commit_pending:
+            return
+        _commit_pending = True
+
+    def run():
+        global _commit_pending
+        time.sleep(COMMIT_DELAY_S)
+        with _lock:
+            _commit_pending = False
+        after_write()
+    threading.Thread(target=run, daemon=True).start()
 
 
 def visitor_of(request):
@@ -34,7 +53,10 @@ def record(request, event, **extra):
         os.makedirs(d, exist_ok=True)
         with open(os.path.join(d, f"{now:%Y-%m-%d}_{_container}.jsonl"), "a") as fh:
             fh.write(json.dumps(row) + "\n")
-    threading.Thread(target=after_write, daemon=True).start()
+    if event == "upload":
+        after_write()
+    else:
+        _commit_later()
 
 
 def _events():
@@ -44,11 +66,14 @@ def _events():
     for f in sorted(os.listdir(d)):
         if not f.endswith(".jsonl"):
             continue
-        for line in open(os.path.join(d, f)):
-            try:
-                yield json.loads(line)
-            except ValueError:
-                pass
+        with open(os.path.join(d, f)) as fh:
+            for line in fh:
+                try:
+                    e = json.loads(line)
+                except ValueError:
+                    continue
+                if isinstance(e, dict) and isinstance(e.get("ts"), str) and e.get("event"):
+                    yield e
 
 
 def stats():
