@@ -721,6 +721,12 @@ const AirwayApp = (() => {
     catch (_) { $("hmsg").textContent = "Could not load the list."; return; }
     if (!rows.length) { $("hmsg").textContent = "No uploads yet."; return; }
     $("hmsg").textContent = `${rows.length} upload${rows.length === 1 ? "" : "s"}. Results stay available while they are kept on the server.`;
+    fetch("/api/stats").then(r => r.json()).then(s => {
+      const u = s.uploads || {}, done = (u.by_state || {}).done || 0;
+      const since = u.first ? ` since ${u.first.slice(0, 10)}` : "";
+      $("hstats").textContent = `${u.total || 0} scans uploaded${since} (${done} completed, ` +
+        `${((u.bytes || 0) / 1e9).toFixed(1)} GB) · ${s.views} page views · ${s.unique_visitors} unique visitors`;
+    }).catch(() => {});
     const when = (iso) => iso ? new Date(iso).toLocaleString() : "";
     $("hist").innerHTML = table(["Uploaded", "File", "Age", "State", "Progress", ""],
       rows.map(r => [when(r.created), esc(r.filename || ""), r.age_years != null ? `${r.age_years} y` : "",

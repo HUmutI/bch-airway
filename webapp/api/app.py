@@ -19,6 +19,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import config as C  # noqa: E402
 from api.cloud import after_write, before_read, wake_worker  # noqa: E402
 from api import convert  # noqa: E402
+from api import analytics  # noqa: E402
 
 WEB = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "web")
 app = FastAPI(title="Airway segmentation and branch labelling", docs_url=None, redoc_url=None)
@@ -35,6 +36,25 @@ if C.BASIC_AUTH_USER and C.BASIC_AUTH_PASSWORD:
             return await call_next(request)
         return Response("Authentication required", status_code=401,
                         headers={"WWW-Authenticate": 'Basic realm="airway", charset="UTF-8"'})
+
+PAGES = re.compile(r"^(/|/history|/jobs/[a-z0-9]{16})$")
+
+
+@app.middleware("http")
+async def count_views(request: Request, call_next):
+    """Count successful page loads (not API calls, not 401s) in JOBS_DIR/_analytics."""
+    response = await call_next(request)
+    if request.method == "GET" and response.status_code == 200 and PAGES.match(request.url.path):
+        try:
+            await run_in_threadpool(analytics.record, request, "view")
+        except Exception as exc:
+            print(f"analytics: {exc}", flush=True)
+    return response
+
+
+@app.get("/api/stats")
+def get_stats():
+    return analytics.stats()
 
 # Anything the packaging and morphometry stages write, nothing else: plain
 # names, one of a few extensions, no path separators.
@@ -103,6 +123,10 @@ def _start_job(request, d, job_id, name, kind, dst, size, age):
               "age_years": age,
               "progress": 0.0, "message": QUEUED_MSG, "error": None}
     json.dump(status, open(os.path.join(d, "status.json"), "w"), indent=1)
+    try:
+        analytics.record(request, "upload", job=job_id, size_bytes=size, kind=kind)
+    except Exception as exc:
+        print(f"analytics: {exc}", flush=True)
     wake_worker(job_id)      # may block on the volume commit
     return {"id": job_id}
 
